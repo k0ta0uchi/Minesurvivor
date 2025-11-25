@@ -79,6 +79,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
   const startTransform = useRef({ x: 0, y: 0 });
   const hasDragged = useRef(false);
   const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
 
   // Sync refs
   useEffect(() => { transformRef.current = transform; }, [transform]);
@@ -256,7 +257,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
                             
-                            const neighborFlags = 0; // Optimization: Recalculating flags in loop is expensive. Passed via props or memoized better? 
                             // For pure performance, simpler color logic:
                             const colors = ['#60a5fa', '#4ade80', '#f87171', '#c084fc', '#facc15', '#f472b6', '#2dd4bf', '#e5e7eb'];
                             ctx.fillStyle = colors[cell.neighborMines - 1] || 'white';
@@ -285,32 +285,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
             }
         }
 
-        // 5. Draw Particles (in World Space)
+        // 5. Draw Particles
         particlesRef.current.forEach(p => {
-             // Coordinate mapping: p.x, p.y are grid coordinates (floats)
              const px = p.x * CELL_SIZE + HALF_CELL;
              const py = p.y * CELL_SIZE + HALF_CELL;
-             
-             // Simple particle physics simulation in render loop (visual only) can be added here
-             // But we rely on CSS animation in original code. 
-             // To keep parity, we simulate fade based on time if we tracked creation time.
-             // Since we don't have creation time passed easily, we just draw them.
-             
-             ctx.save();
-             ctx.translate(px, py);
-             // Apply offset from animation logic or static?
-             // Since logic is in CSS, we can't easily sync. 
-             // We will draw simple squares that fade out?
-             // Actually, for pure performance, we'll draw them simply.
              
              // Hack: use a predictable pseudo-random offset based on ID to simulate "explosion"
              const life = (time % 800) / 800; // Loop every 800ms
              const dx = p.dx * life * 0.5;
              const dy = p.dy * life * 0.5;
              
+             ctx.save();
+             ctx.translate(px, py);
              ctx.globalAlpha = 1 - life;
              
-             // Extract color from Tailwind class (rough approximation)
              let color = '#fff';
              if (p.color.includes('red')) color = '#f87171';
              if (p.color.includes('blue')) color = '#60a5fa';
@@ -334,7 +322,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
 
     animationFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [width, height, gameOver]); // Dependencies that trigger heavy re-calcs
+  }, [width, height, gameOver]);
 
   // --- INITIAL CENTER ---
   useEffect(() => {
@@ -397,15 +385,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
       const mouseX = clientX - rect.left;
       const mouseY = clientY - rect.top;
 
-      const worldX = (mouseX - transform.x) / transform.scale;
-      const worldY = (mouseY - transform.y) / transform.scale;
+      // Important: Use same Math.floor logic as renderer to align hit testing with drawing
+      const tx = Math.floor(transform.x);
+      const ty = Math.floor(transform.y);
+
+      const worldX = (mouseX - tx) / transform.scale;
+      const worldY = (mouseY - ty) / transform.scale;
 
       const col = Math.floor(worldX / CELL_SIZE);
       const row = Math.floor(worldY / CELL_SIZE);
 
       if (col >= 0 && col < width && row >= 0 && row < height) {
           const idx = row * width + col;
-          const cell = cells[idx];
+          // Use ref to ensure we have the absolute latest cells state, bypassing any closure staleness
+          const cell = cellsRef.current[idx];
           if (!cell || cell.isVoid) return null;
           return cell.id;
       }
@@ -438,6 +431,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
   const stopDrag = (e: React.MouseEvent | React.TouchEvent | any) => {
     isDragging.current = false;
     
+    // Fix: Ignore non-left clicks (e.button === 2 for right click) for click logic
+    if (e.type === 'mouseup' && e.button !== 0) {
+        return;
+    }
+
     if (!hasDragged.current && e.type !== 'mouseleave' && e.type !== 'touchcancel') {
         // It was a click
         let clientX, clientY;
@@ -456,28 +454,50 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
 
   const handleRightClick = (e: React.MouseEvent) => {
       e.preventDefault();
+      // If long press already handled this event (mobile quirk), ignore to prevent double toggle
+      if (longPressTriggered.current) {
+          longPressTriggered.current = false;
+          return;
+      }
       const cellId = getCellIdFromEvent(e.clientX, e.clientY);
       if (cellId) onCellRightClick(cellId, e);
   };
 
   // Touch Long Press for Right Click
   const onTouchStart = (e: React.TouchEvent) => {
-      startDrag(e.touches[0].clientX, e.touches[0].clientY);
+      const touch = e.touches[0];
+      const tx = touch.clientX;
+      const ty = touch.clientY;
+      
+      startDrag(tx, ty);
+      longPressTriggered.current = false;
+
+      // Capture coords immediately for the timer
       longPressTimer.current = window.setTimeout(() => {
           isDragging.current = false; // Stop drag
-          hasDragged.current = true; // Prevent click
+          hasDragged.current = true; // Prevent regular click
+          longPressTriggered.current = true; // Mark as handled for contextmenu event
+          
           if (navigator.vibrate) navigator.vibrate(50);
-          const cellId = getCellIdFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+          
+          const cellId = getCellIdFromEvent(tx, ty);
           if (cellId) onCellRightClick(cellId);
       }, 500);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-      if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - dragStart.current.x);
+      const dy = Math.abs(touch.clientY - dragStart.current.y);
+
+      // Only cancel long press if moved significantly (5px threshold)
+      if (dx > 5 || dy > 5) {
+          if (longPressTimer.current) {
+              clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+          }
       }
-      onDrag(e.touches[0].clientX, e.touches[0].clientY);
+      onDrag(touch.clientX, touch.clientY);
   };
 
   const zoomIn = () => setTransform(p => ({ ...p, scale: Math.min(p.scale * 1.2, 5) }));
