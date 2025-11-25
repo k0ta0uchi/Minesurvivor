@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, FloatingText, ShapeType, Language, LocalizedText, Particle } from './types';
 import { GameBoard } from './components/GameBoard';
@@ -488,7 +487,7 @@ export default function App() {
                 collectItem(newCells[idx]);
                 newCells[idx].isLooted = true;
              }
-          });
+           });
       } else if (character.id === 'gambler') {
            const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 7);
            safeHidden.forEach(c => {
@@ -774,6 +773,9 @@ export default function App() {
       if (newCells[currIdx].itemType !== ItemType.NONE && !newCells[currIdx].isLooted) {
           collectItem(newCells[currIdx]);
           newCells[currIdx].isLooted = true;
+      } else {
+          // ADDED: Dust particle effect for safe cells
+          spawnParticles(newCells[currIdx].x, newCells[currIdx].y, "bg-gray-400", 3);
       }
 
       const luckSkill = stats.skills.find(s => s.type === SkillType.PASSIVE_LUCK);
