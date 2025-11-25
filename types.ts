@@ -27,6 +27,13 @@ export enum ShapeType {
   CROSS = 'CROSS'
 }
 
+export type Language = 'en' | 'jp';
+
+export interface LocalizedText {
+  en: string;
+  jp: string;
+}
+
 export interface Cell {
   id: string;
   x: number;
@@ -38,46 +45,46 @@ export interface Cell {
   mineType: MineType;
   itemType: ItemType;
   isLooted: boolean;
-  isVoid: boolean; // Empty cell that is not part of the board
+  isVoid: boolean;
 }
 
 export enum SkillType {
-  PASSIVE_XP = 'PASSIVE_XP', // Increase XP gain
-  PASSIVE_VISION = 'PASSIVE_VISION', // Reveal radius
-  PASSIVE_LUCK = 'PASSIVE_LUCK', // Chance for bonus XP
-  PASSIVE_SHIELD = 'PASSIVE_SHIELD', // Survive a mine
-  ITEM_SONAR = 'ITEM_SONAR', // Active consumable: Reveal safe cells
-  ACTIVE_AUTOFLAG = 'ACTIVE_AUTOFLAG', // Flag mines automatically
-  PASSIVE_GREED = 'PASSIVE_GREED', // Score multiplier
-  PASSIVE_REGEN = 'PASSIVE_REGEN', // Shield regeneration over turns
+  PASSIVE_XP = 'PASSIVE_XP',
+  PASSIVE_VISION = 'PASSIVE_VISION',
+  PASSIVE_LUCK = 'PASSIVE_LUCK',
+  PASSIVE_SHIELD = 'PASSIVE_SHIELD',
+  ITEM_SONAR = 'ITEM_SONAR',
+  ACTIVE_AUTOFLAG = 'ACTIVE_AUTOFLAG',
+  PASSIVE_GREED = 'PASSIVE_GREED',
+  PASSIVE_REGEN = 'PASSIVE_REGEN',
 }
 
 export interface Skill {
   id: string;
-  name: string;
-  description: string;
+  name: LocalizedText;
+  description: LocalizedText;
   type: SkillType;
   level: number;
   maxLevel: number;
-  iconPath: string; // Used to determine which SVG to render
+  iconPath: string;
   color: string;
-  value: number; // The magnitude of the effect (e.g., 1.5x multiplier) OR Charge count
-  valuePerLevel: number; // How much it increases per level
+  value: number;
+  valuePerLevel: number;
 }
 
 export interface Character {
   id: string;
-  name: string;
-  class: string;
-  description: string;
+  name: LocalizedText;
+  class: LocalizedText;
+  description: LocalizedText;
   baseStats: {
     maxShields: number;
     xpMultiplier: number;
     luck: number;
   };
-  startingSkills: string[]; // IDs of skills
-  ultimateName: string;
-  ultimateDesc: string;
+  startingSkills: string[];
+  ultimateName: LocalizedText;
+  ultimateDesc: LocalizedText;
 }
 
 export interface PlayerStats {
@@ -88,7 +95,7 @@ export interface PlayerStats {
   score: number;
   skills: Skill[];
   stage: number;
-  limitGauge: number; // 0 to 100
+  limitGauge: number;
 }
 
 export interface FloatingText {

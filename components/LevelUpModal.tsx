@@ -1,20 +1,22 @@
 import React from 'react';
-import { Skill } from '../types';
+import { Skill, Language } from '../types';
 import { SkillIcon } from './Icons';
+import { UI_TEXT } from '../data/locales';
 
 interface LevelUpModalProps {
   options: Skill[];
   onSelect: (skill: Skill) => void;
+  lang: Language;
 }
 
-export const LevelUpModal: React.FC<LevelUpModalProps> = ({ options, onSelect }) => {
+export const LevelUpModal: React.FC<LevelUpModalProps> = ({ options, onSelect, lang }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
       <div className="max-w-4xl w-full flex flex-col items-center">
         <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-red-500 mb-2 drop-shadow-sm animate-pulse-fast">
-          LEVEL UP!
+          {UI_TEXT.level_up[lang]}
         </h2>
-        <p className="text-gray-300 mb-8 text-lg">Choose an upgrade</p>
+        <p className="text-gray-300 mb-8 text-lg">{UI_TEXT.choose_upgrade[lang]}</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
           {options.map((skill, index) => (
@@ -31,20 +33,20 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ options, onSelect })
                 <SkillIcon icon={skill.iconPath} className="w-12 h-12" />
               </div>
               
-              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-yellow-300">{skill.name}</h3>
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-yellow-300">{skill.name[lang]}</h3>
               
               {skill.level > 0 ? (
                  <span className="inline-block bg-blue-900/50 text-blue-200 text-xs px-2 py-1 rounded mb-2 border border-blue-800">
-                   UPGRADE Lv.{skill.level} → Lv.{skill.level + 1}
+                   {UI_TEXT.upgrade_text[lang]} Lv.{skill.level} → Lv.{skill.level + 1}
                  </span>
               ) : (
                 <span className="inline-block bg-green-900/50 text-green-200 text-xs px-2 py-1 rounded mb-2 border border-green-800">
-                   NEW SKILL
+                   {UI_TEXT.new_skill[lang]}
                  </span>
               )}
 
               <p className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
-                {skill.description}
+                {skill.description[lang]}
               </p>
             </button>
           ))}
