@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, FloatingText } from './types';
+import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, FloatingText, ShapeType } from './types';
 import { GameBoard } from './components/GameBoard';
 import { Sidebar } from './components/Sidebar';
 import { LevelUpModal } from './components/LevelUpModal';
@@ -11,7 +12,6 @@ import { CHARACTERS, AVAILABLE_SKILLS, LEVEL_BASE_XP, XP_SCALING_FACTOR } from '
 // --- Constants ---
 const BASE_WIDTH = 12;
 const BASE_HEIGHT = 16;
-const BASE_MINES = 30;
 
 interface StageConfig {
   width: number;
@@ -19,6 +19,7 @@ interface StageConfig {
   mines: number;
   name: string;
   description: string;
+  shape: ShapeType;
 }
 
 export default function App() {
@@ -79,7 +80,7 @@ export default function App() {
 
   const countNeighborMines = (index: number, currentCells: Cell[], width: number) => {
       const neighbors = getNeighbors(index, width, currentCells.length);
-      return neighbors.reduce((acc, nIdx) => acc + (currentCells[nIdx].isMine ? 1 : 0), 0);
+      return neighbors.reduce((acc, nIdx) => acc + (currentCells[nIdx].isMine && !currentCells[nIdx].isVoid ? 1 : 0), 0);
   };
 
   const addFloatingText = (x: number, y: number, text: string, color: string = 'text-white', icon?: string) => {
@@ -94,16 +95,18 @@ export default function App() {
 
   const generateStageConfig = (stage: number): StageConfig => {
     if (stage === 1) {
-      return { width: 12, height: 16, mines: 25, name: "The Outskirts", description: "A safe place to start." };
+      return { width: 12, height: 16, mines: 25, name: "The Outskirts", description: "A safe place to start.", shape: ShapeType.RECTANGLE };
     }
 
     const variations = [
-      { name: "Wide Plains", width: 20, height: 12, density: 0.15, desc: "Wide open spaces." },
-      { name: "The Deep Dark", width: 12, height: 20, density: 0.15, desc: "Narrow and deep." },
-      { name: "Minefield", width: 14, height: 14, density: 0.20, desc: "Watch your step!" },
-      { name: "The Hive", width: 16, height: 16, density: 0.18, desc: "Buzzing with danger." },
-      { name: "Giganticus", width: 22, height: 22, density: 0.15, desc: "Massive territory." },
-      { name: "Claustrophobia", width: 10, height: 10, density: 0.25, desc: "No room to breathe." }
+      { name: "Wide Plains", width: 20, height: 12, density: 0.15, desc: "Wide open spaces.", shape: ShapeType.RECTANGLE },
+      { name: "The Deep Dark", width: 12, height: 20, density: 0.15, desc: "Narrow and deep.", shape: ShapeType.RECTANGLE },
+      { name: "Minefield", width: 14, height: 14, density: 0.20, desc: "Watch your step!", shape: ShapeType.RECTANGLE },
+      { name: "The Arena", width: 17, height: 17, density: 0.18, desc: "A circular battlefield.", shape: ShapeType.CIRCLE },
+      { name: "The Diamond", width: 19, height: 19, density: 0.18, desc: "Sharp corners.", shape: ShapeType.DIAMOND },
+      { name: "The Void", width: 17, height: 17, density: 0.15, desc: "Don't fall in.", shape: ShapeType.DONUT },
+      { name: "Crossroads", width: 17, height: 17, density: 0.18, desc: "Paths converge.", shape: ShapeType.CROSS },
+      { name: "Giganticus", width: 22, height: 22, density: 0.15, desc: "Massive territory.", shape: ShapeType.RECTANGLE },
     ];
 
     // Select random variation, but favor bigger maps at higher stages
@@ -112,15 +115,67 @@ export default function App() {
     
     // Scale difficulty slightly with stage
     const density = Math.min(0.25, type.density + (stage * 0.005));
-    const mines = Math.floor(type.width * type.height * density);
+    // Estimate playable area for mines calculation
+    let areaFactor = 1;
+    if (type.shape === ShapeType.CIRCLE) areaFactor = 0.78;
+    if (type.shape === ShapeType.DIAMOND) areaFactor = 0.5;
+    if (type.shape === ShapeType.DONUT) areaFactor = 0.6;
+    if (type.shape === ShapeType.CROSS) areaFactor = 0.55;
+
+    const playableCells = type.width * type.height * areaFactor;
+    const mines = Math.floor(playableCells * density);
 
     return {
       width: type.width,
       height: type.height,
       mines: mines,
       name: type.name,
-      description: type.desc
+      description: type.desc,
+      shape: type.shape
     };
+  };
+
+  const applyShapeMask = (cells: Cell[], width: number, height: number, shape: ShapeType) => {
+      const cx = (width - 1) / 2;
+      const cy = (height - 1) / 2;
+      const radius = Math.min(width, height) / 2;
+
+      cells.forEach(cell => {
+          const dx = Math.abs(cell.x - cx);
+          const dy = Math.abs(cell.y - cy);
+          const distSq = (cell.x - cx) ** 2 + (cell.y - cy) ** 2;
+
+          let isVoid = false;
+
+          switch (shape) {
+              case ShapeType.CIRCLE:
+                  if (distSq > radius * radius) isVoid = true;
+                  break;
+              case ShapeType.DIAMOND:
+                  if (dx + dy > radius) isVoid = true;
+                  break;
+              case ShapeType.DONUT:
+                  // Outer circle and inner hole
+                  const outer = radius * radius;
+                  const inner = (radius * 0.4) ** 2;
+                  if (distSq > outer || distSq < inner) isVoid = true;
+                  break;
+              case ShapeType.CROSS:
+                  // Looks like a plus sign. 
+                  // Keep if x is within center strip OR y is within center strip
+                  const stripW = width * 0.35;
+                  const stripH = height * 0.35;
+                  const inV = dx < stripW / 2;
+                  const inH = dy < stripH / 2;
+                  if (!inV && !inH) isVoid = true;
+                  break;
+              case ShapeType.RECTANGLE:
+              default:
+                  isVoid = false;
+                  break;
+          }
+          cell.isVoid = isVoid;
+      });
   };
 
   const startStage = (stageNum: number, currentStats: PlayerStats, char: Character) => {
@@ -140,13 +195,25 @@ export default function App() {
       neighborMines: 0,
       mineType: MineType.NORMAL,
       itemType: ItemType.NONE,
-      isLooted: false
+      isLooted: false,
+      isVoid: false
     }));
+
+    // Apply Shape Mask
+    applyShapeMask(newCells, config.width, config.height, config.shape);
+
+    // Filter valid cells for placement
+    const validCellIndices = newCells
+        .map((c, i) => c.isVoid ? -1 : i)
+        .filter(i => i !== -1);
 
     // Place Mines
     let minesPlaced = 0;
-    while (minesPlaced < config.mines) {
-      const idx = Math.floor(Math.random() * totalCells);
+    while (minesPlaced < config.mines && validCellIndices.length > 0) {
+      // Pick random valid index
+      const r = Math.floor(Math.random() * validCellIndices.length);
+      const idx = validCellIndices[r];
+      
       if (!newCells[idx].isMine) {
         newCells[idx].isMine = true;
         // 20% Chance to be a monster
@@ -154,13 +221,14 @@ export default function App() {
             newCells[idx].mineType = MineType.MONSTER;
         }
         minesPlaced++;
+        // Remove from available to speed up large map generation logic (optional optimization)
       }
     }
 
     // Place Items on Safe Cells
-    // 5% chance per safe cell
+    // 5% chance per safe valid cell
     newCells.forEach(cell => {
-        if (!cell.isMine) {
+        if (!cell.isMine && !cell.isVoid) {
             const rand = Math.random();
             if (rand < 0.03) {
                 cell.itemType = ItemType.POTION;
@@ -172,7 +240,7 @@ export default function App() {
 
     // Calculate Numbers
     newCells.forEach((cell, idx) => {
-      if (cell.isMine) return;
+      if (cell.isMine || cell.isVoid) return;
       cell.neighborMines = countNeighborMines(idx, newCells, config.width);
     });
 
@@ -297,7 +365,7 @@ export default function App() {
 
       if (character.id === 'miner') {
           // BUNKER BUSTER: 5x5 explosion centered on random safe hidden cell
-          const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed);
+          const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid);
           if (safeHidden.length > 0) {
               const target = safeHidden[Math.floor(Math.random() * safeHidden.length)];
               const targetIdx = parseInt(target.id.split('-')[1]);
@@ -311,6 +379,8 @@ export default function App() {
                       const ny = ty + dy;
                       if (nx >= 0 && nx < boardConfig.width && ny >= 0 && ny < boardConfig.height) {
                           const idx = ny * boardConfig.width + nx;
+                          if (newCells[idx].isVoid) continue;
+                          
                           if (newCells[idx].isMine) {
                              newCells[idx].isFlagged = true; // Mark mines
                           } else if (!newCells[idx].isRevealed) {
@@ -327,14 +397,14 @@ export default function App() {
           }
       } else if (character.id === 'scholar') {
           // MIND'S EYE: Find 5 random mines and flag them
-          const hiddenMines = newCells.filter(c => c.isMine && !c.isFlagged);
+          const hiddenMines = newCells.filter(c => c.isMine && !c.isFlagged && !c.isVoid);
           const toFlag = hiddenMines.sort(() => 0.5 - Math.random()).slice(0, 5);
           toFlag.forEach(c => {
              const idx = parseInt(c.id.split('-')[1]);
              newCells[idx].isFlagged = true;
           });
           // Also reveal 5 safe
-          const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed).sort(() => 0.5 - Math.random()).slice(0, 5);
+          const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5);
           safeHidden.forEach(c => {
              const idx = parseInt(c.id.split('-')[1]);
              newCells[idx].isRevealed = true;
@@ -346,7 +416,7 @@ export default function App() {
           });
       } else if (character.id === 'gambler') {
           // LUCKY 7: Reveal 7 random safe cells
-           const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed).sort(() => 0.5 - Math.random()).slice(0, 7);
+           const safeHidden = newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 7);
            safeHidden.forEach(c => {
               const idx = parseInt(c.id.split('-')[1]);
               newCells[idx].isRevealed = true;
@@ -366,8 +436,8 @@ export default function App() {
   const triggerSonar = () => {
     const { cells: currentCells, stats: currentStats, character, boardConfig } = stateRef.current;
     
-    // Find candidates (Safe, Hidden, Not Flagged)
-    const candidates = currentCells.filter(c => !c.isMine && !c.isRevealed && !c.isFlagged);
+    // Find candidates (Safe, Hidden, Not Flagged, Not Void)
+    const candidates = currentCells.filter(c => !c.isMine && !c.isRevealed && !c.isFlagged && !c.isVoid);
     if (candidates.length === 0) return;
 
     const target = candidates[Math.floor(Math.random() * candidates.length)];
@@ -378,8 +448,8 @@ export default function App() {
     const neighbors = getNeighbors(currentCells.indexOf(target), boardConfig.width, currentCells.length);
     neighbors.forEach(nIdx => {
       const n = currentCells[nIdx];
-      // Only reveal neighbors if they are safe. Sonar avoids mines.
-      if (!n.isMine && !n.isRevealed && !n.isFlagged) {
+      // Only reveal neighbors if they are safe and not void. Sonar avoids mines.
+      if (!n.isMine && !n.isRevealed && !n.isFlagged && !n.isVoid) {
         toRevealIds.add(n.id);
       }
     });
@@ -489,7 +559,7 @@ export default function App() {
         };
     });
     
-    if (gameOverReason === 'win' && cells.filter(c => !c.isMine && !c.isRevealed).length === 0) {
+    if (gameOverReason === 'win' && cells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).length === 0) {
        setGameState(GameState.STAGE_CLEAR);
     } else {
        setGameState(GameState.PLAYING);
@@ -553,7 +623,9 @@ export default function App() {
       // Important: We must update neighbor counts for the surrounding cells because a mine just vanished
       const neighbors = getNeighbors(index, boardConfig.width, newCells.length);
       neighbors.forEach(nIdx => {
-         newCells[nIdx].neighborMines = countNeighborMines(nIdx, newCells, boardConfig.width);
+         if (!newCells[nIdx].isVoid) {
+             newCells[nIdx].neighborMines = countNeighborMines(nIdx, newCells, boardConfig.width);
+         }
       });
       // Also update self
       cell.neighborMines = countNeighborMines(index, newCells, boardConfig.width);
@@ -571,7 +643,7 @@ export default function App() {
     const index = parseInt(id.split('-')[1]);
     const cell = cells[index];
 
-    if (cell.isRevealed || cell.isFlagged) return;
+    if (cell.isRevealed || cell.isFlagged || cell.isVoid) return;
 
     if (cell.isMine) {
       if (cell.mineType === MineType.MONSTER) {
@@ -616,7 +688,7 @@ export default function App() {
     
     while (toReveal.length > 0) {
       const currIdx = toReveal.pop()!;
-      if (newCells[currIdx].isRevealed) continue;
+      if (newCells[currIdx].isRevealed || newCells[currIdx].isVoid) continue;
 
       newCells[currIdx].isRevealed = true;
       revealedIndices.push(currIdx);
@@ -639,7 +711,7 @@ export default function App() {
       if (newCells[currIdx].neighborMines === 0) {
         const neighbors = getNeighbors(currIdx, boardConfig.width, newCells.length);
         neighbors.forEach(n => {
-          if (!newCells[n].isRevealed && !newCells[n].isFlagged) {
+          if (!newCells[n].isRevealed && !newCells[n].isFlagged && !newCells[n].isVoid) {
             toReveal.push(n);
           }
         });
@@ -666,7 +738,7 @@ export default function App() {
   };
 
   const checkWinCondition = (currentCells: Cell[]) => {
-      const hiddenNonMines = currentCells.filter(c => !c.isMine && !c.isRevealed).length;
+      const hiddenNonMines = currentCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).length;
       if (hiddenNonMines === 0) {
         setGameState(GameState.STAGE_CLEAR);
         setGameOverReason('win');
@@ -680,7 +752,7 @@ export default function App() {
     
     const index = parseInt(id.split('-')[1]);
     const newCells = [...cells];
-    if (newCells[index].isRevealed) return;
+    if (newCells[index].isRevealed || newCells[index].isVoid) return;
 
     newCells[index].isFlagged = !newCells[index].isFlagged;
     setCells(newCells);

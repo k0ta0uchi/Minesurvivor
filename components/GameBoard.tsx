@@ -30,6 +30,11 @@ const getCellColor = (neighborMines: number) => {
 
 const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent) => void, gameOver: boolean }) => {
   
+  // Render void cells as empty space
+  if (cell.isVoid) {
+      return <div className="w-8 h-8 sm:w-10 sm:h-10 opacity-0 pointer-events-none" />;
+  }
+
   // Extract seed from ID (e.g. "cell-123" -> 123)
   const cellSeed = useMemo(() => parseInt(cell.id.split('-')[1]), [cell.id]);
 

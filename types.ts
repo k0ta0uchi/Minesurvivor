@@ -19,6 +19,14 @@ export enum ItemType {
   CHEST = 'CHEST'
 }
 
+export enum ShapeType {
+  RECTANGLE = 'RECTANGLE',
+  CIRCLE = 'CIRCLE',
+  DIAMOND = 'DIAMOND',
+  DONUT = 'DONUT',
+  CROSS = 'CROSS'
+}
+
 export interface Cell {
   id: string;
   x: number;
@@ -30,6 +38,7 @@ export interface Cell {
   mineType: MineType;
   itemType: ItemType;
   isLooted: boolean;
+  isVoid: boolean; // Empty cell that is not part of the board
 }
 
 export enum SkillType {
