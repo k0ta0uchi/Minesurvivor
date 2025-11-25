@@ -9,12 +9,16 @@ interface GameBoardProps {
   width: number;
   height: number;
   onCellClick: (id: string) => void;
-  onCellRightClick: (e: React.MouseEvent | React.TouchEvent, id: string) => void;
+  onCellRightClick: (id: string, e?: React.MouseEvent | React.TouchEvent) => void;
   gameOver: boolean;
   floatingTexts: FloatingText[];
 }
 
-const getCellColor = (neighborMines: number) => {
+const getCellColor = (neighborMines: number, neighborFlags: number) => {
+  // Visual cue for satisfied/over-flagged numbers
+  if (neighborFlags > neighborMines) return 'text-red-500 scale-110'; // Warning
+  if (neighborFlags === neighborMines) return 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]'; // Satisfied (Gold)
+
   switch (neighborMines) {
     case 1: return 'text-blue-400';
     case 2: return 'text-green-400';
@@ -28,7 +32,7 @@ const getCellColor = (neighborMines: number) => {
   }
 };
 
-const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent | React.TouchEvent) => void, gameOver: boolean }) => {
+const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neighborFlags }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent | React.TouchEvent) => void, gameOver: boolean, neighborFlags: number }) => {
   const longPressTimer = useRef<number | null>(null);
   const isLongPress = useRef(false);
 
@@ -91,13 +95,13 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { c
 
             {/* Number */}
             {cell.neighborMines > 0 && (
-                <span className={`font-bold text-xl relative z-10 ${getCellColor(cell.neighborMines)}`}>
+                <span className={`font-bold text-xl relative z-10 transition-all duration-300 ${getCellColor(cell.neighborMines, neighborFlags)}`}>
                     {cell.neighborMines}
                 </span>
             )}
         </div>
     );
-  }, [cell.isFlagged, cell.isRevealed, cell.isMine, cell.neighborMines, cell.mineType, cell.itemType, cellSeed]);
+  }, [cell.isFlagged, cell.isRevealed, cell.isMine, cell.neighborMines, cell.mineType, cell.itemType, cellSeed, neighborFlags]);
 
   let bgClass = "bg-gray-750 cell-shadow hover:bg-gray-700";
   let animationClass = "";
@@ -148,6 +152,28 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { c
 });
 
 export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts }) => {
+  
+  // Helper to count flags around a specific index
+  // This is duplicated logic from App.tsx but necessary for render-time visual cues
+  const getNeighborFlags = (index: number) => {
+      const x = index % width;
+      const y = Math.floor(index / width);
+      let flags = 0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            const nIdx = ny * width + nx;
+            if (cells[nIdx].isFlagged) flags++;
+          }
+        }
+      }
+      return flags;
+  };
+
   return (
     <div className="relative group p-[2px] rounded-xl bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 shadow-2xl border border-gray-800">
       {/* Outer Glow */}
@@ -166,13 +192,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
             width: 'fit-content'
           }}
         >
-          {cells.map((cell) => (
+          {cells.map((cell, index) => (
             <CellComponent
               key={cell.id}
               cell={cell}
               onClick={() => onCellClick(cell.id)}
-              onRightClick={(e) => onCellRightClick(e, cell.id)}
+              onRightClick={(e) => onCellRightClick(cell.id, e)}
               gameOver={gameOver}
+              neighborFlags={cell.isRevealed ? getNeighborFlags(index) : 0}
             />
           ))}
           

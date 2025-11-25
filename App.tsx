@@ -38,6 +38,7 @@ export default function App() {
   const [bgmVolume, setBgmVolume] = useState(0.5);
   const [seVolume, setSeVolume] = useState(0.5);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFlagMode, setIsFlagMode] = useState(false); // Toggle between Dig/Flag on mobile
 
   const [stats, setStats] = useState<PlayerStats>({
     level: 1,
@@ -61,10 +62,10 @@ export default function App() {
   const comboTimerRef = useRef<number | null>(null);
 
   // --- Refs for Game Loop Logic ---
-  const stateRef = useRef({ cells, stats, gameState, character, boardConfig, combo, lang });
+  const stateRef = useRef({ cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode });
   useEffect(() => {
-    stateRef.current = { cells, stats, gameState, character, boardConfig, combo, lang };
-  }, [cells, stats, gameState, character, boardConfig, combo, lang]);
+    stateRef.current = { cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode };
+  }, [cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode]);
 
   // --- Music Control ---
   useEffect(() => {
@@ -628,6 +629,11 @@ export default function App() {
     if (gameState !== GameState.PLAYING) return;
     const currentLang = stateRef.current.lang;
     
+    if (isFlagMode) {
+        handleRightClick(id);
+        return;
+    }
+
     const index = parseInt(id.split('-')[1]);
     const cell = cells[index];
 
@@ -727,8 +733,8 @@ export default function App() {
       }
   };
 
-  const handleRightClick = (e: React.MouseEvent | React.TouchEvent, id: string) => {
-    e.preventDefault();
+  const handleRightClick = (id: string, e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.preventDefault();
     if (gameState !== GameState.PLAYING) return;
     
     const index = parseInt(id.split('-')[1]);
@@ -810,29 +816,30 @@ export default function App() {
         {/* Main Scrollable Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar w-full relative h-full">
             {gameState === GameState.MENU && (
-              <div className="h-full flex flex-col items-center justify-center w-full py-4 md:py-10 px-4 animate-fade-in overflow-hidden">
-                <div className="flex-shrink-0 text-center mb-4 md:mb-12 relative">
+              <div className="h-full flex flex-col items-center justify-center w-full p-4 animate-fade-in overflow-hidden">
+                <div className="flex-shrink-0 text-center mb-4 relative">
                     <div className="absolute -inset-4 bg-purple-500/20 blur-xl rounded-full animate-pulse-fast"></div>
                     <h1 className="text-4xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl relative z-10">
                       MINESURVIVOR
                     </h1>
                     <p className="text-purple-400 uppercase tracking-[0.5em] text-[10px] md:text-xs mt-2 font-bold opacity-80">{UI_TEXT.subtitle[lang]}</p>
-                    <p className="text-gray-400 mt-2 md:mt-8 animate-slide-up text-center text-xs md:text-base" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
+                    <p className="text-gray-400 mt-2 text-xs md:text-base" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
                 </div>
                 
-                <div className="flex-1 w-full max-w-5xl flex flex-col md:flex-row items-stretch justify-center gap-3 md:gap-6 overflow-y-auto md:overflow-visible pb-4 px-2">
+                <div className="flex-1 w-full max-w-5xl flex flex-col md:flex-row items-stretch md:items-center justify-center gap-2 md:gap-6 md:overflow-visible px-2 min-h-0">
                   {CHARACTERS.map((char, idx) => (
                     <button
                       key={char.id}
                       onClick={() => initializeGame(char)}
-                      className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-700 hover:border-purple-500 transition-all hover:-translate-y-1 md:hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden flex-shrink-0 w-full md:w-auto md:flex-1 md:min-w-[280px] max-w-sm mx-auto
-                      flex flex-row md:flex-col items-center text-left md:text-center p-3 md:p-8 rounded-xl md:rounded-2xl min-h-[80px] md:min-h-0"
+                      className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-700 hover:border-purple-500 transition-all hover:-translate-y-1 md:hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 
+                      flex-shrink-1 w-full md:w-auto md:flex-1 md:min-w-[280px] max-w-sm mx-auto
+                      flex flex-row md:flex-col items-center text-left md:text-center p-2 md:p-8 rounded-xl md:rounded-2xl h-auto"
                       style={{animationDelay: `${150 + idx * 100}ms`}}
                     >
                       {/* Card Glow Effect */}
                       <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       
-                      <div className="w-16 h-16 md:w-24 md:h-24 mr-4 md:mr-0 md:mb-6 flex items-center justify-center relative flex-shrink-0">
+                      <div className="w-12 h-12 md:w-24 md:h-24 mr-3 md:mr-0 md:mb-6 flex items-center justify-center relative flex-shrink-0">
                         {/* Character Glow */}
                         <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <PixelCharacter id={char.id} className="w-full h-full filter drop-shadow-md group-hover:drop-shadow-xl transition-all relative z-10" />
@@ -840,15 +847,19 @@ export default function App() {
                       
                       <div className="flex-1 min-w-0">
                           <div className="flex flex-col md:items-center">
-                             <h3 className="text-lg md:text-2xl font-bold text-white mb-0.5 md:mb-2 group-hover:text-purple-300 transition-colors">{char.name[lang]}</h3>
-                             <div className="bg-gray-800/80 px-2 py-0.5 md:px-3 md:py-1 rounded text-[10px] md:text-xs uppercase tracking-widest text-blue-300 mb-1 md:mb-4 border border-gray-700 w-fit">{char.class[lang]}</div>
+                             <div className="flex items-center gap-2 mb-1 md:flex-col md:gap-0 md:mb-2">
+                                <h3 className="text-base md:text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">{char.name[lang]}</h3>
+                                <div className="bg-gray-800/80 px-2 py-0.5 md:px-3 md:py-1 rounded text-[10px] md:text-xs uppercase tracking-widest text-blue-300 border border-gray-700 w-fit">{char.class[lang]}</div>
+                             </div>
                           </div>
                           
-                          <p className="text-xs md:text-sm text-gray-400 leading-tight md:mb-4 text-left md:text-center line-clamp-2 md:line-clamp-none">{char.description[lang]}</p>
+                          <p className="text-[10px] md:text-sm text-gray-400 leading-tight md:mb-4 text-left md:text-center line-clamp-1 md:line-clamp-none">{char.description[lang]}</p>
                           
-                          <div className="hidden md:block w-full pt-4 border-t border-gray-800 mt-auto">
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 text-center">{UI_TEXT.ultimate[lang]}</p>
-                            <p className="text-xs text-red-300 font-bold text-center">{char.ultimateName[lang]}</p>
+                          <div className="mt-1 md:mt-auto md:w-full md:pt-4 md:border-t md:border-gray-800">
+                            <div className="flex flex-row md:flex-col gap-1 items-baseline md:items-center">
+                                <span className="text-[10px] text-red-400 font-bold uppercase">{UI_TEXT.ultimate[lang]}:</span>
+                                <span className="text-[10px] md:text-xs text-gray-300 md:text-red-300 md:font-bold truncate">{char.ultimateName[lang]}</span>
+                            </div>
                           </div>
                       </div>
                     </button>
@@ -871,6 +882,16 @@ export default function App() {
                     />
                 </div>
                 
+                {/* Mobile FAB for Mode Toggle */}
+                <div className="md:hidden fixed bottom-6 right-6 z-40">
+                    <button 
+                        onClick={() => setIsFlagMode(!isFlagMode)}
+                        className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all transform active:scale-95 border-4 ${isFlagMode ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-600 border-blue-400 text-white'}`}
+                    >
+                        {isFlagMode ? <Icons.flag className="w-8 h-8" /> : <Icons.shovel className="w-8 h-8" />}
+                    </button>
+                </div>
+
                 {(gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR) && (
                   <div className="absolute inset-0 z-20 bg-gray-950/90 flex items-center justify-center flex-col animate-fade-in backdrop-blur-md">
                     {gameState === GameState.STAGE_CLEAR ? (

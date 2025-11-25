@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PlayerStats, Character, SkillType, Language } from '../types';
 import { SkillIcon, Icons } from './Icons';
@@ -34,6 +33,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const xpPercentage = Math.min(100, (stats.currentXp / stats.neededXp) * 100);
   const ultimatePercentage = Math.min(100, stats.limitGauge);
   const isUltimateReady = ultimatePercentage >= 100;
+
+  const handleSkillClick = (id: string) => {
+      if (onClose) onClose();
+      onUseSkill(id);
+  };
+
+  const handleUltimateClick = () => {
+      if (onClose) onClose();
+      onUseUltimate();
+  };
 
   return (
     <div className={`flex flex-col gap-6 bg-gray-900 p-4 border-l border-gray-800 h-full overflow-y-auto ${className}`}>
@@ -89,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
          </div>
          
          <button
-            onClick={onUseUltimate}
+            onClick={handleUltimateClick}
             disabled={!isUltimateReady}
             className={`
                 w-full py-3 rounded-lg font-black uppercase tracking-widest text-sm transition-all duration-200
@@ -141,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   group relative bg-gray-800 rounded-lg p-3 transition-all border 
                   ${canUse ? 'border-red-500/50 hover:border-red-400 hover:bg-gray-750 cursor-pointer shadow-red-900/20 shadow-lg' : 'border-gray-700/50 hover:bg-gray-750'}
                 `}
-                onClick={() => canUse && onUseSkill(skill.id)}
+                onClick={() => canUse && handleSkillClick(skill.id)}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-md bg-gray-900 ${skill.color} relative`}>
