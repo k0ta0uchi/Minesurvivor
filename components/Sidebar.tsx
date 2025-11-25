@@ -18,11 +18,16 @@ interface SidebarProps {
   onToggleSe: () => void;
   onToggleLang: () => void;
   onClose?: () => void;
+  bgmVolume: number;
+  seVolume: number;
+  onSetBgmVolume: (v: number) => void;
+  onSetSeVolume: (v: number) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   character, stats, className, onUseSkill, onUseUltimate, 
-  lang, bgmEnabled, seEnabled, onToggleBgm, onToggleSe, onToggleLang, onClose 
+  lang, bgmEnabled, seEnabled, onToggleBgm, onToggleSe, onToggleLang, onClose,
+  bgmVolume, seVolume, onSetBgmVolume, onSetSeVolume
 }) => {
   if (!character) return null;
 
@@ -188,27 +193,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Settings Footer */}
       <div className="mt-auto pt-4 border-t border-gray-800">
          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{UI_TEXT.settings[lang]}</h3>
-         <div className="flex items-center justify-between gap-2">
-            <button 
-                onClick={onToggleBgm}
-                className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-colors ${bgmEnabled ? 'bg-gray-800 border-green-900/50 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500'}`}
-            >
-                {bgmEnabled ? <Icons.music className="w-5 h-5 mb-1"/> : <Icons.musicOff className="w-5 h-5 mb-1"/>}
-                <span className="text-[10px] font-bold">BGM</span>
-            </button>
-            <button 
-                onClick={onToggleSe}
-                className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-colors ${seEnabled ? 'bg-gray-800 border-green-900/50 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500'}`}
-            >
-                {seEnabled ? <Icons.volume className="w-5 h-5 mb-1"/> : <Icons.volumeX className="w-5 h-5 mb-1"/>}
-                <span className="text-[10px] font-bold">SE</span>
-            </button>
+         <div className="flex flex-col gap-3">
+             {/* BGM Controls */}
+             <div className="flex items-center gap-2">
+                 <button 
+                    onClick={onToggleBgm}
+                    className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded border transition-colors ${bgmEnabled ? 'bg-gray-800 border-green-900/50 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500'}`}
+                >
+                    {bgmEnabled ? <Icons.music className="w-4 h-4"/> : <Icons.musicOff className="w-4 h-4"/>}
+                </button>
+                <div className="flex-1 flex flex-col justify-center">
+                    <span className="text-[10px] text-gray-500 font-bold mb-0.5">BGM</span>
+                    <input 
+                        type="range" min="0" max="1" step="0.05" 
+                        value={bgmVolume} 
+                        onChange={(e) => onSetBgmVolume(parseFloat(e.target.value))}
+                        disabled={!bgmEnabled}
+                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    />
+                </div>
+             </div>
+
+             {/* SE Controls */}
+             <div className="flex items-center gap-2">
+                 <button 
+                    onClick={onToggleSe}
+                    className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded border transition-colors ${seEnabled ? 'bg-gray-800 border-green-900/50 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500'}`}
+                >
+                    {seEnabled ? <Icons.volume className="w-4 h-4"/> : <Icons.volumeX className="w-4 h-4"/>}
+                </button>
+                <div className="flex-1 flex flex-col justify-center">
+                    <span className="text-[10px] text-gray-500 font-bold mb-0.5">SE</span>
+                    <input 
+                        type="range" min="0" max="1" step="0.05" 
+                        value={seVolume} 
+                        onChange={(e) => onSetSeVolume(parseFloat(e.target.value))}
+                        disabled={!seEnabled}
+                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    />
+                </div>
+             </div>
+
+             {/* Language Toggle */}
             <button 
                 onClick={onToggleLang}
-                className="flex-1 flex flex-col items-center justify-center p-2 rounded border bg-gray-800 border-gray-700 hover:border-blue-500 text-blue-300 transition-colors"
+                className="w-full flex items-center justify-center gap-2 p-2 rounded border bg-gray-800 border-gray-700 hover:border-blue-500 text-blue-300 transition-colors mt-1"
             >
-                <Icons.globe className="w-5 h-5 mb-1"/>
-                <span className="text-[10px] font-bold">{lang === 'en' ? 'EN' : 'JP'}</span>
+                <Icons.globe className="w-4 h-4"/>
+                <span className="text-xs font-bold">{lang === 'en' ? 'English' : '日本語'}</span>
             </button>
          </div>
       </div>

@@ -73,6 +73,10 @@ export const UI_TEXT: Record<string, Record<Language, string>> = {
     en: "Settings",
     jp: "設定"
   },
+  volume: {
+    en: "Volume",
+    jp: "音量"
+  },
   
   // Level Up
   level_up: {

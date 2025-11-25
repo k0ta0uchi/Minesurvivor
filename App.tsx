@@ -35,6 +35,8 @@ export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [bgmEnabled, setBgmEnabled] = useState(true);
   const [seEnabled, setSeEnabled] = useState(true);
+  const [bgmVolume, setBgmVolume] = useState(0.5);
+  const [seVolume, setSeVolume] = useState(0.5);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [stats, setStats] = useState<PlayerStats>({
@@ -68,6 +70,8 @@ export default function App() {
   useEffect(() => {
     audioManager.setBgmEnabled(bgmEnabled);
     audioManager.setSeEnabled(seEnabled);
+    audioManager.setBgmVolume(bgmVolume);
+    audioManager.setSeVolume(seVolume);
 
     if (gameState === GameState.PLAYING) {
       audioManager.startMusic(stats.stage);
@@ -78,7 +82,16 @@ export default function App() {
     return () => {
       audioManager.stopMusic();
     };
-  }, [gameState, stats.stage, bgmEnabled, seEnabled]);
+  }, [gameState, stats.stage, bgmEnabled, seEnabled]); // Volume changes handled by direct setters below, but initial load needs this
+
+  // Update volume immediately when changed
+  useEffect(() => {
+      audioManager.setBgmVolume(bgmVolume);
+  }, [bgmVolume]);
+
+  useEffect(() => {
+      audioManager.setSeVolume(seVolume);
+  }, [seVolume]);
 
   // --- Helpers for Grid Logic ---
 
@@ -896,6 +909,10 @@ export default function App() {
             onToggleBgm={() => setBgmEnabled(!bgmEnabled)}
             onToggleSe={() => setSeEnabled(!seEnabled)}
             onToggleLang={() => setLang(l => l === 'en' ? 'jp' : 'en')}
+            bgmVolume={bgmVolume}
+            seVolume={seVolume}
+            onSetBgmVolume={setBgmVolume}
+            onSetSeVolume={setSeVolume}
           />
         </div>
       )}
@@ -917,6 +934,10 @@ export default function App() {
                     onToggleSe={() => setSeEnabled(!seEnabled)}
                     onToggleLang={() => setLang(l => l === 'en' ? 'jp' : 'en')}
                     onClose={() => setIsSidebarOpen(false)}
+                    bgmVolume={bgmVolume}
+                    seVolume={seVolume}
+                    onSetBgmVolume={setBgmVolume}
+                    onSetSeVolume={setSeVolume}
                   />
             </div>
         </div>
