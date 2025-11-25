@@ -1,8 +1,9 @@
 
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Cell, MineType, ItemType, FloatingText } from '../types';
+import { Cell, MineType, ItemType, FloatingText, Particle } from '../types';
 import { Icons } from './Icons';
 import { PixelEnemy } from './PixelCharacters';
+import { Particles } from './Particles';
 
 interface GameBoardProps {
   cells: Cell[];
@@ -12,6 +13,7 @@ interface GameBoardProps {
   onCellRightClick: (id: string, e?: React.MouseEvent | React.TouchEvent) => void;
   gameOver: boolean;
   floatingTexts: FloatingText[];
+  particles: Particle[];
 }
 
 const getCellColor = (neighborMines: number, neighborFlags: number) => {
@@ -35,11 +37,6 @@ const getCellColor = (neighborMines: number, neighborFlags: number) => {
 const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neighborFlags }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent | React.TouchEvent) => void, gameOver: boolean, neighborFlags: number }) => {
   const longPressTimer = useRef<number | null>(null);
   const isLongPress = useRef(false);
-
-  // Render void cells as empty space
-  if (cell.isVoid) {
-      return <div className="w-8 h-8 sm:w-10 sm:h-10 opacity-0 pointer-events-none" />;
-  }
 
   const startPress = useCallback((e: React.TouchEvent) => {
       isLongPress.current = false;
@@ -103,6 +100,11 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
     );
   }, [cell.isFlagged, cell.isRevealed, cell.isMine, cell.neighborMines, cell.mineType, cell.itemType, cellSeed, neighborFlags]);
 
+  // Render void cells as empty space - Must be AFTER hooks to avoid React Error #300
+  if (cell.isVoid) {
+      return <div className="w-8 h-8 sm:w-10 sm:h-10 opacity-0 pointer-events-none" />;
+  }
+
   let bgClass = "bg-gray-750 cell-shadow hover:bg-gray-700";
   let animationClass = "";
 
@@ -151,10 +153,9 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
   );
 });
 
-export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts, particles }) => {
   
   // Helper to count flags around a specific index
-  // This is duplicated logic from App.tsx but necessary for render-time visual cues
   const getNeighborFlags = (index: number) => {
       const x = index % width;
       const y = Math.floor(index / width);
@@ -184,6 +185,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
          {/* Internal Texture */}
          <div className="absolute inset-0 bg-dots-dark opacity-40 pointer-events-none"></div>
          
+         {/* Particle System */}
+         <Particles particles={particles} width={width} height={height} />
+
          {/* The Grid */}
          <div 
           className="grid gap-1 relative z-10 mx-auto"

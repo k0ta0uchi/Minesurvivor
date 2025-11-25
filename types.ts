@@ -54,9 +54,12 @@ export enum SkillType {
   PASSIVE_LUCK = 'PASSIVE_LUCK',
   PASSIVE_SHIELD = 'PASSIVE_SHIELD',
   ITEM_SONAR = 'ITEM_SONAR',
+  ITEM_ALCHEMY = 'ITEM_ALCHEMY',     // New
   ACTIVE_AUTOFLAG = 'ACTIVE_AUTOFLAG',
   PASSIVE_GREED = 'PASSIVE_GREED',
   PASSIVE_REGEN = 'PASSIVE_REGEN',
+  PASSIVE_DODGE = 'PASSIVE_DODGE',   // New
+  PASSIVE_COMBO = 'PASSIVE_COMBO',   // New
 }
 
 export interface Skill {
@@ -105,4 +108,13 @@ export interface FloatingText {
   text: string;
   color: string;
   icon?: string;
+}
+
+export interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+  dx: number;
+  dy: number;
 }

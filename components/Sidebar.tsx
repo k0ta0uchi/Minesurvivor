@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PlayerStats, Character, SkillType, Language } from '../types';
 import { SkillIcon, Icons } from './Icons';
@@ -140,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">{UI_TEXT.active_skills[lang]}</h3>
         <div className="space-y-3">
           {stats.skills.map((skill) => {
-            const isConsumable = skill.type === SkillType.ITEM_SONAR;
+            const isConsumable = skill.type === SkillType.ITEM_SONAR || skill.type === SkillType.ITEM_ALCHEMY;
             const canUse = isConsumable && skill.value > 0;
             
             return (

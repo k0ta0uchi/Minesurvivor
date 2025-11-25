@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, FloatingText, ShapeType, Language, LocalizedText } from './types';
+import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, FloatingText, ShapeType, Language, LocalizedText, Particle } from './types';
 import { GameBoard } from './components/GameBoard';
 import { Sidebar } from './components/Sidebar';
 import { LevelUpModal } from './components/LevelUpModal';
@@ -53,9 +53,11 @@ export default function App() {
   const [levelUpOptions, setLevelUpOptions] = useState<Skill[]>([]);
   const [gameOverReason, setGameOverReason] = useState<'win' | 'lose' | null>(null);
   
-  // Floating Texts
+  // Floating Texts & Particles
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
   const ftIdCounter = useRef(0);
+  const ptIdCounter = useRef(0);
 
   // Combo System
   const [combo, setCombo] = useState(0);
@@ -125,6 +127,25 @@ export default function App() {
     setTimeout(() => {
         setFloatingTexts(prev => prev.filter(ft => ft.id !== id));
     }, 1500);
+  };
+
+  const spawnParticles = (x: number, y: number, color: string, count: number = 5) => {
+      const newParticles: Particle[] = [];
+      for (let i = 0; i < count; i++) {
+          newParticles.push({
+              id: ptIdCounter.current++,
+              x, y,
+              color,
+              dx: (Math.random() - 0.5) * 60, // Spread
+              dy: (Math.random() - 0.5) * 60 
+          });
+      }
+      setParticles(prev => [...prev, ...newParticles]);
+      
+      // Auto cleanup
+      setTimeout(() => {
+          setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
+      }, 800); // Match CSS animation duration
   };
 
   const generateStageConfig = (stage: number): StageConfig => {
@@ -273,6 +294,7 @@ export default function App() {
     setGameOverReason(null);
     setCombo(0);
     setFloatingTexts([]); 
+    setParticles([]);
     
     if (stageNum === 1) {
       audioManager.playLevelUp();
@@ -331,10 +353,15 @@ export default function App() {
       setCombo(prev => prev + 1);
       audioManager.playCombo(stateRef.current.combo);
       
+      // Combo Extension Skill
+      const comboSkill = stateRef.current.stats.skills.find(s => s.type === SkillType.PASSIVE_COMBO);
+      const extraTime = comboSkill ? comboSkill.value : 0;
+      const duration = 3000 + extraTime;
+
       if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
       comboTimerRef.current = window.setTimeout(() => {
           setCombo(0);
-      }, 3000); 
+      }, duration); 
   };
 
   useEffect(() => {
@@ -350,14 +377,56 @@ export default function App() {
     const skill = stats.skills.find(s => s.id === skillId);
     if (!skill) return;
 
-    if (skill.type === SkillType.ITEM_SONAR) {
+    // Consumable check
+    if (skill.type === SkillType.ITEM_SONAR || skill.type === SkillType.ITEM_ALCHEMY) {
         if (skill.value <= 0) return;
+        
+        // Deduct charge
         setStats(prev => ({
             ...prev,
             skills: prev.skills.map(s => s.id === skillId ? { ...s, value: s.value - 1 } : s)
         }));
-        triggerSonar();
+
+        if (skill.type === SkillType.ITEM_SONAR) {
+            triggerSonar();
+        } else if (skill.type === SkillType.ITEM_ALCHEMY) {
+            triggerAlchemy();
+        }
     }
+  };
+
+  const triggerAlchemy = () => {
+      const { cells: currentCells, boardConfig } = stateRef.current;
+      const hiddenMines = currentCells.filter(c => c.isMine && !c.isRevealed && !c.isVoid);
+      
+      if (hiddenMines.length === 0) return;
+
+      audioManager.playAlchemy();
+      const target = hiddenMines[Math.floor(Math.random() * hiddenMines.length)];
+      const index = parseInt(target.id.split('-')[1]);
+      
+      const newCells = [...currentCells];
+      newCells[index].isMine = false;
+      newCells[index].mineType = MineType.NORMAL;
+      
+      // 30% Chest, 70% Potion
+      newCells[index].itemType = Math.random() < 0.3 ? ItemType.CHEST : ItemType.POTION;
+      newCells[index].isFlagged = false; // Unflag if it was guessed
+
+      // Update neighbors of surrounding cells
+      const neighbors = getNeighbors(index, boardConfig.width, newCells.length);
+      neighbors.forEach(nIdx => {
+         if (!newCells[nIdx].isVoid) {
+             newCells[nIdx].neighborMines = countNeighborMines(nIdx, newCells, boardConfig.width);
+         }
+      });
+      // Update target itself
+      newCells[index].neighborMines = countNeighborMines(index, newCells, boardConfig.width);
+
+      setCells(newCells);
+      const currentLang = stateRef.current.lang;
+      addFloatingText(target.x, target.y, UI_TEXT.alchemy[currentLang], "text-pink-400", "⚗️");
+      spawnParticles(target.x, target.y, "bg-pink-400");
   };
 
   const handleUseUltimate = () => {
@@ -570,6 +639,7 @@ export default function App() {
           setStats(prev => ({...prev, shields: prev.shields + 1 }));
           const text = currentLang === 'en' ? "+1 SHIELD" : "+1 シールド";
           addFloatingText(cell.x, cell.y, text, "text-blue-400", "🛡️");
+          spawnParticles(cell.x, cell.y, "bg-blue-400");
       } else if (cell.itemType === ItemType.CHEST) {
           audioManager.playChest();
           const scoreBonus = 1000;
@@ -578,6 +648,7 @@ export default function App() {
           addFloatingText(cell.x, cell.y, UI_TEXT.treasure[currentLang], "text-yellow-300", "💎");
           setTimeout(() => addFloatingText(cell.x, cell.y, `+${scoreBonus} PTS`, "text-yellow-200"), 300);
           setTimeout(() => addFloatingText(cell.x, cell.y, `+${xpBonus} XP`, "text-purple-300"), 600);
+          spawnParticles(cell.x, cell.y, "bg-yellow-400", 8);
       }
   };
 
@@ -602,6 +673,7 @@ export default function App() {
       const text = currentLang === 'en' ? "-1 SHIELD" : "-1 シールド";
       addFloatingText(cell.x, cell.y, text, "text-red-400");
       setTimeout(() => addFloatingText(cell.x, cell.y, "+100 XP", "text-purple-400", "⚔️"), 200);
+      spawnParticles(cell.x, cell.y, "bg-purple-500", 10);
 
       cell.isMine = false;
       cell.mineType = MineType.NORMAL; 
@@ -643,6 +715,19 @@ export default function App() {
     if (cell.isMine) {
       if (cell.mineType === MineType.MONSTER) {
           handleCombat(index);
+          return;
+      }
+
+      // DODGE CHECK
+      const dodgeSkill = stats.skills.find(s => s.type === SkillType.PASSIVE_DODGE);
+      const dodgeChance = dodgeSkill ? dodgeSkill.value : 0;
+      if (Math.random() < dodgeChance) {
+          audioManager.playDodge();
+          const newCells = [...cells];
+          newCells[index].isFlagged = true;
+          setCells(newCells);
+          addFloatingText(cell.x, cell.y, UI_TEXT.dodged[currentLang], "text-cyan-300", "💨");
+          spawnParticles(cell.x, cell.y, "bg-cyan-400");
           return;
       }
 
@@ -880,6 +965,7 @@ export default function App() {
                       onCellRightClick={handleRightClick}
                       gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR}
                       floatingTexts={floatingTexts}
+                      particles={particles}
                     />
                 </div>
                 

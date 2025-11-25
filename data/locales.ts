@@ -131,6 +131,10 @@ export const UI_TEXT: Record<string, Record<Language, string>> = {
     en: "BLOCKED!",
     jp: "防御！"
   },
+  dodged: {
+    en: "DODGED!",
+    jp: "回避！"
+  },
   lucky: {
     en: "LUCKY!",
     jp: "ラッキー！"
@@ -138,5 +142,9 @@ export const UI_TEXT: Record<string, Record<Language, string>> = {
   treasure: {
     en: "TREASURE!",
     jp: "お宝！"
+  },
+  alchemy: {
+    en: "ALCHEMY!",
+    jp: "錬金！"
   }
 };

@@ -1,4 +1,3 @@
-
 import { Character, Skill, SkillType } from '../types';
 
 interface NoteEvent {
@@ -102,7 +101,7 @@ const SONGS: Record<number, TrackData> = {
       "e e a a d d g g " +
       "d d c c b b a a d d c c b b a a",
     drums:
-      "t125 l16 k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
+      "t125 l16 k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
@@ -183,7 +182,7 @@ const SONGS: Record<number, TrackData> = {
       "c c c c g# g# g# g# f f g g c c c c",
     bass:
       "t90 o1 l1 c g g# g f g c g " +
-      "c g# f g c g# f g " +
+      "c g# f g " +
       "g# a# g# g g# a# c g " +
       "c d d# f " +
       "c g# f g",
@@ -536,7 +535,6 @@ class AudioController {
       if (!this.bgmEnabled) return;
       this.getContext();
       this.musicEngine.loadTrack(stage);
-      // Don't reset startTimeOffset blindly here, MusicEngine.start handles resumption logic
       this.musicEngine.start();
   }
   
@@ -546,6 +544,60 @@ class AudioController {
   
   public resetMusic() {
       this.musicEngine.reset();
+  }
+
+  public playAlchemy() {
+    if (!this.seEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+    osc.frequency.linearRampToValueAtTime(400, now + 0.2);
+    osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+    
+    gain.gain.setValueAtTime(0.2 * this.seVolume, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.4);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+
+  public playDodge() {
+    if (!this.seEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    
+    const bufferSize = ctx.sampleRate * 0.2;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(200, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(3000, ctx.currentTime + 0.2);
+    
+    gain.gain.setValueAtTime(0.2 * this.seVolume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start();
   }
 
   public playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.1) {
@@ -559,7 +611,6 @@ class AudioController {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, ctx.currentTime);
     
-    // Scale by SE Volume
     const scaledVol = vol * this.seVolume;
 
     gain.gain.setValueAtTime(scaledVol, ctx.currentTime);

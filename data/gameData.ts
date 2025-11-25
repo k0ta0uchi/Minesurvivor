@@ -74,6 +74,42 @@ export const AVAILABLE_SKILLS: Skill[] = [
     value: 0, 
     valuePerLevel: 1,
   },
+  {
+    id: 'alchemy_kit',
+    name: { en: 'Alchemy Kit', jp: '錬金術セット' },
+    description: { en: 'Consumable. Turns a random hidden mine into loot.', jp: '【消耗品】ランダムな隠し地雷をアイテムに変換する。' },
+    type: SkillType.ITEM_ALCHEMY,
+    level: 0,
+    maxLevel: 10,
+    iconPath: 'flask',
+    color: 'text-pink-400',
+    value: 0,
+    valuePerLevel: 1,
+  },
+  {
+    id: 'ninja_reflexes',
+    name: { en: 'Ninja Reflexes', jp: '変わり身の術' },
+    description: { en: 'Chance to dodge a mine explosion and flag it instead.', jp: '地雷の爆発を回避し、代わりにフラグを立てる確率を得る。' },
+    type: SkillType.PASSIVE_DODGE,
+    level: 0,
+    maxLevel: 5,
+    iconPath: 'feather',
+    color: 'text-cyan-400',
+    value: 0,
+    valuePerLevel: 0.1, // 10% chance per level
+  },
+  {
+    id: 'time_dilation',
+    name: { en: 'Time Dilation', jp: '時間拡張' },
+    description: { en: 'Extends combo timer duration.', jp: 'コンボの受付時間が延長される。' },
+    type: SkillType.PASSIVE_COMBO,
+    level: 0,
+    maxLevel: 5,
+    iconPath: 'clock',
+    color: 'text-orange-400',
+    value: 0,
+    valuePerLevel: 1000, // +1000ms
+  },
 ];
 
 export const CHARACTERS: Character[] = [
