@@ -1,5 +1,5 @@
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { Cell, MineType, ItemType, FloatingText } from '../types';
 import { Icons } from './Icons';
 import { PixelEnemy } from './PixelCharacters';
@@ -9,7 +9,7 @@ interface GameBoardProps {
   width: number;
   height: number;
   onCellClick: (id: string) => void;
-  onCellRightClick: (e: React.MouseEvent, id: string) => void;
+  onCellRightClick: (e: React.MouseEvent | React.TouchEvent, id: string) => void;
   gameOver: boolean;
   floatingTexts: FloatingText[];
 }
@@ -28,12 +28,37 @@ const getCellColor = (neighborMines: number) => {
   }
 };
 
-const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent) => void, gameOver: boolean }) => {
-  
+const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { cell: Cell, onClick: () => void, onRightClick: (e: React.MouseEvent | React.TouchEvent) => void, gameOver: boolean }) => {
+  const longPressTimer = useRef<number | null>(null);
+  const isLongPress = useRef(false);
+
   // Render void cells as empty space
   if (cell.isVoid) {
       return <div className="w-8 h-8 sm:w-10 sm:h-10 opacity-0 pointer-events-none" />;
   }
+
+  const startPress = useCallback((e: React.TouchEvent) => {
+      isLongPress.current = false;
+      longPressTimer.current = window.setTimeout(() => {
+          isLongPress.current = true;
+          if (navigator.vibrate) navigator.vibrate(50);
+          onRightClick(e);
+      }, 500);
+  }, [onRightClick]);
+
+  const cancelPress = useCallback(() => {
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+      cancelPress();
+      if (isLongPress.current) {
+          e.preventDefault(); 
+      }
+  }, [cancelPress]);
 
   // Extract seed from ID (e.g. "cell-123" -> 123)
   const cellSeed = useMemo(() => parseInt(cell.id.split('-')[1]), [cell.id]);
@@ -103,12 +128,17 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver }: { c
 
   return (
     <div
-      onClick={onClick}
+      onClick={(e) => {
+          if (!isLongPress.current) onClick();
+      }}
       onContextMenu={onRightClick}
+      onTouchStart={startPress}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={cancelPress}
       className={`
         w-8 h-8 sm:w-10 sm:h-10 
         flex items-center justify-center 
-        cursor-pointer select-none transition-colors duration-100 rounded-sm
+        cursor-pointer select-none transition-colors duration-100 rounded-sm touch-manipulation
         ${bgClass} ${animationClass}
       `}
     >

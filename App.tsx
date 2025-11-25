@@ -727,7 +727,7 @@ export default function App() {
       }
   };
 
-  const handleRightClick = (e: React.MouseEvent, id: string) => {
+  const handleRightClick = (e: React.MouseEvent | React.TouchEvent, id: string) => {
     e.preventDefault();
     if (gameState !== GameState.PLAYING) return;
     
