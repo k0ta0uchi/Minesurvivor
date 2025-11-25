@@ -755,16 +755,16 @@ export default function App() {
         <div className="absolute top-6 right-6 z-[60]">
              <button 
                 onClick={() => setLang(l => l === 'en' ? 'jp' : 'en')}
-                className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-4 py-2 rounded-full text-xs font-bold font-mono transition-all shadow-lg group"
+                className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold font-mono transition-all shadow-lg group"
             >
-                <Icons.globe className="w-4 h-4 text-gray-400 group-hover:text-purple-400 transition-colors"/>
+                <Icons.globe className="w-3 h-3 md:w-4 md:h-4 text-gray-400 group-hover:text-purple-400 transition-colors"/>
                 <span className="text-gray-300 group-hover:text-white">{lang === 'en' ? 'English' : '日本語'}</span>
             </button>
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 relative z-10 flex flex-col min-w-0">
+      <div className="flex-1 relative z-10 flex flex-col min-w-0 h-full">
         
         {/* Header (Mobile) */}
         {gameState !== GameState.MENU && (
@@ -807,42 +807,49 @@ export default function App() {
             </div>
         )}
 
-        {/* Main Scrollable Area - UPDATED FOR MOBILE SCROLLING FIX */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar w-full relative">
+        {/* Main Scrollable Area */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar w-full relative h-full">
             {gameState === GameState.MENU && (
-              <div className="min-h-full flex flex-col items-center justify-center w-full py-10 px-4 animate-fade-in">
-                <div className="mb-12 relative text-center">
+              <div className="h-full flex flex-col items-center justify-center w-full py-4 md:py-10 px-4 animate-fade-in overflow-hidden">
+                <div className="flex-shrink-0 text-center mb-4 md:mb-12 relative">
                     <div className="absolute -inset-4 bg-purple-500/20 blur-xl rounded-full animate-pulse-fast"></div>
-                    <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl relative z-10">
+                    <h1 className="text-4xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl relative z-10">
                       MINESURVIVOR
                     </h1>
-                    <p className="text-purple-400 uppercase tracking-[0.5em] text-xs mt-2 font-bold opacity-80">{UI_TEXT.subtitle[lang]}</p>
+                    <p className="text-purple-400 uppercase tracking-[0.5em] text-[10px] md:text-xs mt-2 font-bold opacity-80">{UI_TEXT.subtitle[lang]}</p>
+                    <p className="text-gray-400 mt-2 md:mt-8 animate-slide-up text-center text-xs md:text-base" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
                 </div>
                 
-                <p className="text-gray-400 mb-8 animate-slide-up text-center" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
-                
-                <div className="flex flex-col md:flex-row gap-6 w-full max-w-5xl justify-center items-stretch">
+                <div className="flex-1 w-full max-w-5xl flex flex-col md:flex-row items-stretch justify-center gap-3 md:gap-6 overflow-y-auto md:overflow-visible pb-4 px-2">
                   {CHARACTERS.map((char, idx) => (
                     <button
                       key={char.id}
                       onClick={() => initializeGame(char)}
-                      className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-700 hover:border-purple-500 p-6 md:p-8 rounded-2xl transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 flex flex-col items-center animate-slide-up overflow-hidden flex-1 min-w-[280px] max-w-sm mx-auto"
+                      className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-700 hover:border-purple-500 transition-all hover:-translate-y-1 md:hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden flex-shrink-0 w-full md:w-auto md:flex-1 md:min-w-[280px] max-w-sm mx-auto
+                      flex flex-row md:flex-col items-center text-left md:text-center p-3 md:p-8 rounded-xl md:rounded-2xl min-h-[80px] md:min-h-0"
                       style={{animationDelay: `${150 + idx * 100}ms`}}
                     >
+                      {/* Card Glow Effect */}
                       <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       
-                      <div className="w-24 h-24 mb-6 flex items-center justify-center relative flex-shrink-0">
+                      <div className="w-16 h-16 md:w-24 md:h-24 mr-4 md:mr-0 md:mb-6 flex items-center justify-center relative flex-shrink-0">
+                        {/* Character Glow */}
                         <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <PixelCharacter id={char.id} className="w-full h-full filter drop-shadow-md group-hover:drop-shadow-xl transition-all relative z-10" />
                       </div>
                       
-                      <h3 className="text-2xl font-bold mb-2 group-hover:text-purple-300 transition-colors">{char.name[lang]}</h3>
-                      <div className="bg-gray-800/80 px-3 py-1 rounded text-xs uppercase tracking-widest text-blue-300 mb-4 border border-gray-700">{char.class[lang]}</div>
-                      <p className="text-sm text-gray-400 text-center leading-relaxed mb-4 flex-grow">{char.description[lang]}</p>
-                      
-                      <div className="w-full pt-4 border-t border-gray-800 mt-auto">
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 text-center">{UI_TEXT.ultimate[lang]}</p>
-                        <p className="text-xs text-red-300 font-bold text-center">{char.ultimateName[lang]}</p>
+                      <div className="flex-1 min-w-0">
+                          <div className="flex flex-col md:items-center">
+                             <h3 className="text-lg md:text-2xl font-bold text-white mb-0.5 md:mb-2 group-hover:text-purple-300 transition-colors">{char.name[lang]}</h3>
+                             <div className="bg-gray-800/80 px-2 py-0.5 md:px-3 md:py-1 rounded text-[10px] md:text-xs uppercase tracking-widest text-blue-300 mb-1 md:mb-4 border border-gray-700 w-fit">{char.class[lang]}</div>
+                          </div>
+                          
+                          <p className="text-xs md:text-sm text-gray-400 leading-tight md:mb-4 text-left md:text-center line-clamp-2 md:line-clamp-none">{char.description[lang]}</p>
+                          
+                          <div className="hidden md:block w-full pt-4 border-t border-gray-800 mt-auto">
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 text-center">{UI_TEXT.ultimate[lang]}</p>
+                            <p className="text-xs text-red-300 font-bold text-center">{char.ultimateName[lang]}</p>
+                          </div>
                       </div>
                     </button>
                   ))}
