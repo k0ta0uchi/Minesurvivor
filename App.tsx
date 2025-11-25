@@ -280,6 +280,7 @@ export default function App() {
   };
 
   const initializeGame = (char: Character) => {
+    audioManager.resetMusic(); // Ensure fresh music start
     setCharacter(char);
     const initialSkills = AVAILABLE_SKILLS.filter(s => char.startingSkills.includes(s.id)).map(s => ({...s, level: 1, value: s.value + s.valuePerLevel}));
     

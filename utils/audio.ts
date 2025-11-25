@@ -102,7 +102,7 @@ const SONGS: Record<number, TrackData> = {
       "e e a a d d g g " +
       "d d c c b b a a d d c c b b a a",
     drums:
-      "t125 l16 k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
+      "t125 l16 k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
       "k k s k k k s k k k s k k k s k k k s k k k s k k k s k k k s k " + 
@@ -245,6 +245,8 @@ class MusicEngine {
   private loopLength: number = 0;
   public startTimeOffset: number = 0;
   private masterVolume: number = 0.5;
+  private currentStage: number = -1;
+  private savedTimePosition: number = 0;
 
   constructor() {
     // Context is shared with audioManager or created lazily
@@ -340,6 +342,14 @@ class MusicEngine {
   }
 
   public loadTrack(stage: number) {
+    // If resume requested for same stage, preserve state
+    if (this.currentStage === stage) {
+        return;
+    }
+
+    this.currentStage = stage;
+    this.savedTimePosition = 0; // Reset position for new track
+
     const songId = (stage - 1) % 5;
     const trackData = SONGS[songId];
     if (!trackData) return;
@@ -360,15 +370,32 @@ class MusicEngine {
   public start() {
     if (this.isPlaying || !this.ctx) return;
     this.isPlaying = true;
+    
+    // Resume from saved position relative to current audio context time
+    this.startTimeOffset = this.ctx.currentTime - this.savedTimePosition;
+    
     this.schedule();
   }
 
   public stop() {
+    if (!this.isPlaying) return;
     this.isPlaying = false;
     if (this.timerID !== null) {
         window.clearTimeout(this.timerID);
         this.timerID = null;
     }
+    
+    // Save current position
+    if (this.ctx) {
+        this.savedTimePosition = this.ctx.currentTime - this.startTimeOffset;
+    }
+  }
+  
+  public reset() {
+      this.stop();
+      this.currentStage = -1;
+      this.savedTimePosition = 0;
+      this.cursors = { lead: 0, harmony: 0, bass: 0, drums: 0 };
   }
 
   private scheduleLoop() {
@@ -509,12 +536,16 @@ class AudioController {
       if (!this.bgmEnabled) return;
       this.getContext();
       this.musicEngine.loadTrack(stage);
-      if (this.ctx) (this.musicEngine as any).startTimeOffset = this.ctx.currentTime;
+      // Don't reset startTimeOffset blindly here, MusicEngine.start handles resumption logic
       this.musicEngine.start();
   }
   
   public stopMusic() {
       this.musicEngine.stop();
+  }
+  
+  public resetMusic() {
+      this.musicEngine.reset();
   }
 
   public playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.1) {
