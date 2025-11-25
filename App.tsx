@@ -82,7 +82,7 @@ export default function App() {
     return () => {
       audioManager.stopMusic();
     };
-  }, [gameState, stats.stage, bgmEnabled, seEnabled]); // Volume changes handled by direct setters below, but initial load needs this
+  }, [gameState, stats.stage, bgmEnabled, seEnabled]);
 
   // Update volume immediately when changed
   useEffect(() => {
@@ -750,6 +750,19 @@ export default function App() {
       <div className="absolute inset-0 bg-radial-fade opacity-80 pointer-events-none z-0"></div>
       <div className="scanlines z-50"></div>
 
+      {/* Language Toggle for Title Screen (Menu Only) */}
+      {gameState === GameState.MENU && (
+        <div className="absolute top-6 right-6 z-[60]">
+             <button 
+                onClick={() => setLang(l => l === 'en' ? 'jp' : 'en')}
+                className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-4 py-2 rounded-full text-xs font-bold font-mono transition-all shadow-lg group"
+            >
+                <Icons.globe className="w-4 h-4 text-gray-400 group-hover:text-purple-400 transition-colors"/>
+                <span className="text-gray-300 group-hover:text-white">{lang === 'en' ? 'English' : '日本語'}</span>
+            </button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="flex-1 relative z-10 flex flex-col min-w-0">
         
@@ -800,11 +813,6 @@ export default function App() {
                       MINESURVIVOR
                     </h1>
                     <p className="text-purple-400 uppercase tracking-[0.5em] text-xs mt-2 font-bold opacity-80">{UI_TEXT.subtitle[lang]}</p>
-                    
-                    {/* Settings Toggles for Menu */}
-                    <div className="mt-8 flex gap-4 justify-center">
-                        <button onClick={() => setLang(l => l === 'en' ? 'jp' : 'en')} className="text-xs bg-gray-800 px-3 py-1 rounded border border-gray-700 hover:border-white">{lang === 'en' ? 'EN' : 'JP'}</button>
-                    </div>
                 </div>
                 
                 <p className="text-gray-400 mb-8 animate-slide-up text-center" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
