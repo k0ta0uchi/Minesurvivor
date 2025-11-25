@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full w-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -73,12 +73,20 @@
                 '100%': { transform: 'translateY(-40px) scale(1)', opacity: '0' },
               }
             }
-          },
-        },
-      };
+          }
+        }
+      }
     </script>
     <style>
-      /* Custom Scrollbar for a cleaner look */
+      html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #0d1117;
+      }
+      
+      /* Custom Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -93,7 +101,7 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #4b5563; 
       }
-      
+
       .cell-shadow {
         box-shadow: inset 2px 2px 0px rgba(255,255,255,0.08), inset -2px -2px 0px rgba(0,0,0,0.5);
       }
@@ -108,12 +116,12 @@
           linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
           linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
       }
-      
+
       .bg-dots-dark {
         background-image: radial-gradient(rgba(100, 116, 139, 0.15) 1px, transparent 1px);
         background-size: 6px 6px;
       }
-      
+
       .bg-radial-fade {
         background: radial-gradient(circle at center, transparent 0%, #0d1117 100%);
       }
@@ -133,17 +141,18 @@
         z-index: 1;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
-  }
-}
-</script>
-</head>
-  <body class="bg-gray-950 text-white overflow-hidden">
-    <div id="root"></div>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/"
+      }
+    }
+    </script>
+  </head>
+  <body class="bg-gray-950 text-white overflow-hidden h-full w-full">
+    <div id="root" class="h-full w-full"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 
 // 16x16 Pixel Art Grids
@@ -206,11 +205,12 @@ const PixelSprite: React.FC<{ spriteData: string[], className?: string }> = ({ s
   }, [spriteData, pixelSize]);
 
   return (
-    <div className={`relative inline-block select-none ${className}`}>
+    <div className={`relative flex items-center justify-center select-none ${className}`}>
       <svg
         viewBox="0 0 100 100"
         xmlns="http://www.w3.org/2000/svg"
         shapeRendering="crispEdges"
+        preserveAspectRatio="xMidYMid meet"
         className="w-full h-full drop-shadow-lg"
       >
         {pixels}
