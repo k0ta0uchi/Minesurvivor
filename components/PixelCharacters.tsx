@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 
 // 16x16 Pixel Art Grids
@@ -19,7 +20,7 @@ import React, { useMemo } from 'react';
 // E = Emerald (Enemy)
 // Z = Zinc (Enemy Gray)
 
-const PALETTE: Record<string, string> = {
+export const PALETTE: Record<string, string> = {
   '.': 'transparent',
   'K': '#1a1a1a', // Almost black
   'S': '#fca5a5', // Skin
@@ -40,7 +41,7 @@ const PALETTE: Record<string, string> = {
   'Z': '#52525b', // Zinc
 };
 
-const SPRITES: Record<string, string[]> = {
+export const SPRITES: Record<string, string[]> = {
   // The Sapper: Mining helmet with light, beard, sturdy look
   miner: [
     "......KKKK......",
