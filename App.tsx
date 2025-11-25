@@ -334,7 +334,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex-1 relative z-10 flex flex-col min-w-0 h-full">
+      <div className="flex-1 relative z-10 flex flex-col min-w-0 h-full overflow-hidden">
         {gameState !== GameState.MENU && (
           <div className="md:hidden w-full flex-shrink-0 flex justify-between items-center mb-0 bg-gray-900/90 backdrop-blur-md p-2 border-b border-gray-700 shadow-xl z-20 relative">
             <div className="flex items-center gap-2 flex-1"><span className="text-purple-400 font-bold text-xs">{UI_TEXT.stage[lang]} {stats.stage}</span><span className="font-bold text-yellow-400">Lv.{stats.level}</span></div>
@@ -347,7 +347,7 @@ export default function App() {
         )}
 
         {gameState === GameState.PLAYING && (
-          <div className="absolute top-12 md:top-4 left-0 right-0 flex justify-center pointer-events-none z-20">
+          <div className="absolute top-12 md:top-4 left-0 right-0 flex justify-center pointer-events-none z-30">
             <div className="flex flex-col items-center">
               <span className="bg-gray-900/80 backdrop-blur px-4 py-1 rounded-full text-xs text-gray-400 border border-gray-700 shadow-lg mb-2">{stageName[lang]}</span>
               {combo > 2 && <div className="animate-bounce-small"><span className={`font-black italic tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] ${combo > 10 ? 'text-4xl text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 to-red-600' : 'text-2xl text-yellow-400'}`}>{combo} {UI_TEXT.combo[lang]}</span></div>}
@@ -355,21 +355,24 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar w-full relative h-full">
-          {gameState === GameState.MENU && <TitleScreen characters={CHARACTERS} lang={lang} onSelectCharacter={initializeGame} />}
-          
-          {(gameState !== GameState.MENU) && (
-            <>
-              <div className="min-h-full flex flex-col items-center justify-center p-4">
-                <GameBoard cells={cells} width={boardConfig.width} height={boardConfig.height} onCellClick={handleCellClick} onCellRightClick={handleRightClick} gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR} floatingTexts={floatingTexts} particles={particles} />
-              </div>
-              <div className="md:hidden fixed bottom-6 right-6 z-40">
+        {/* MAIN GAME AREA - Layout Logic */}
+        {gameState === GameState.MENU ? (
+          <div className="w-full h-full overflow-y-auto custom-scrollbar relative">
+             <TitleScreen characters={CHARACTERS} lang={lang} onSelectCharacter={initializeGame} />
+          </div>
+        ) : (
+          <div className="relative w-full h-full bg-gray-950 overflow-hidden">
+             <GameBoard cells={cells} width={boardConfig.width} height={boardConfig.height} onCellClick={handleCellClick} onCellRightClick={handleRightClick} gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR} floatingTexts={floatingTexts} particles={particles} />
+             
+             {/* Overlays (Win/Loss) */}
+             <GameOverlays gameState={gameState} stats={stats} lang={lang} onNextStage={() => { const ns = stats.stage + 1; const bonus = stats.stage * 500; setStats(p => ({ ...p, score: p.score + bonus })); startStage(ns, { ...stats, score: stats.score + bonus }); }} onReturnToBase={() => setGameState(GameState.MENU)} />
+
+             {/* Mobile Flag Toggle Button */}
+             <div className="md:hidden absolute bottom-6 right-6 z-40">
                 <button onClick={() => setIsFlagMode(!isFlagMode)} className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all transform active:scale-95 border-4 ${isFlagMode ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-600 border-blue-400 text-white'}`}>{isFlagMode ? <Icons.flag className="w-8 h-8" /> : <Icons.shovel className="w-8 h-8" />}</button>
-              </div>
-              <GameOverlays gameState={gameState} stats={stats} lang={lang} onNextStage={() => { const ns = stats.stage + 1; const bonus = stats.stage * 500; setStats(p => ({ ...p, score: p.score + bonus })); startStage(ns, { ...stats, score: stats.score + bonus }); }} onReturnToBase={() => setGameState(GameState.MENU)} />
-            </>
-          )}
-        </div>
+             </div>
+          </div>
+        )}
       </div>
 
       {gameState !== GameState.MENU && (

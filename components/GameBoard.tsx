@@ -1,5 +1,5 @@
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { Cell, MineType, ItemType, FloatingText, Particle } from '../types';
 import { Icons } from './Icons';
 import { PixelEnemy } from './PixelCharacters';
@@ -17,9 +17,8 @@ interface GameBoardProps {
 }
 
 const getCellColor = (neighborMines: number, neighborFlags: number) => {
-  // Visual cue for satisfied/over-flagged numbers
-  if (neighborFlags > neighborMines) return 'text-red-500 scale-110'; // Warning
-  if (neighborFlags === neighborMines) return 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]'; // Satisfied (Gold)
+  if (neighborFlags > neighborMines) return 'text-red-500 scale-110'; 
+  if (neighborFlags === neighborMines) return 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]'; 
 
   switch (neighborMines) {
     case 1: return 'text-blue-400';
@@ -61,7 +60,6 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
       }
   }, [cancelPress]);
 
-  // Extract seed from ID (e.g. "cell-123" -> 123)
   const cellSeed = useMemo(() => parseInt(cell.id.split('-')[1]), [cell.id]);
 
   const content = useMemo(() => {
@@ -72,17 +70,14 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
       return null;
     }
     if (cell.isMine) {
-      // It's a mine/monster that was revealed (e.g. Game Over)
       if (cell.mineType === MineType.MONSTER) {
           return <PixelEnemy seed={cellSeed} className="w-8 h-8" />;
       }
       return <Icons.mine className="w-6 h-6 text-red-600 animate-pulse" />;
     }
     
-    // Revealed Safe Cell
     return (
         <div className="relative w-full h-full flex items-center justify-center">
-            {/* Background Item Icon */}
             {cell.itemType === ItemType.POTION && (
                 <Icons.potion className="absolute w-6 h-6 text-blue-500/30" />
             )}
@@ -90,7 +85,6 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
                 <Icons.chest className="absolute w-6 h-6 text-yellow-400 opacity-80 animate-bounce-small drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />
             )}
 
-            {/* Number */}
             {cell.neighborMines > 0 && (
                 <span className={`font-bold text-xl relative z-10 transition-all duration-300 ${getCellColor(cell.neighborMines, neighborFlags)}`}>
                     {cell.neighborMines}
@@ -100,7 +94,6 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
     );
   }, [cell.isFlagged, cell.isRevealed, cell.isMine, cell.neighborMines, cell.mineType, cell.itemType, cellSeed, neighborFlags]);
 
-  // Render void cells as empty space - Must be AFTER hooks to avoid React Error #300
   if (cell.isVoid) {
       return <div className="w-8 h-8 sm:w-10 sm:h-10 opacity-0 pointer-events-none" />;
   }
@@ -110,33 +103,27 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
 
   if (cell.isRevealed) {
     if (cell.isMine) {
-        // Exploded Mine / Monster
         bgClass = cell.mineType === MineType.MONSTER 
             ? "bg-purple-900/50 cell-revealed border border-purple-800"
             : "bg-red-900/50 cell-revealed border border-red-800";
     } else {
         bgClass = "bg-gray-850 cell-revealed border border-gray-800";
-        // Apply pop animation only to safe cells
         animationClass = "animate-reveal-pop";
         
-        // Highlight collected items slightly
         if (cell.itemType === ItemType.POTION) bgClass += " shadow-[inset_0_0_10px_rgba(59,130,246,0.1)]";
         if (cell.itemType === ItemType.CHEST) bgClass += " shadow-[inset_0_0_15px_rgba(234,179,8,0.2)]";
     }
   } else if (gameOver && cell.isMine) {
-    bgClass = "bg-gray-800 opacity-60"; // Reveal mines on game over
+    bgClass = "bg-gray-800 opacity-60"; 
   }
 
-  // Override content for game over reveal
   const displayContent = (gameOver && cell.isMine && !cell.isRevealed && !cell.isFlagged) 
     ? (cell.mineType === MineType.MONSTER ? <PixelEnemy seed={cellSeed} className="w-8 h-8 opacity-70" /> : <Icons.mine className="w-5 h-5 text-gray-500" />)
     : content;
 
   return (
     <div
-      onClick={(e) => {
-          if (!isLongPress.current) onClick();
-      }}
+      onClick={onClick}
       onContextMenu={onRightClick}
       onTouchStart={startPress}
       onTouchEnd={handleTouchEnd}
@@ -154,13 +141,115 @@ const CellComponent = React.memo(({ cell, onClick, onRightClick, gameOver, neigh
 });
 
 export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts, particles }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 0.8 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const startTransform = useRef({ x: 0, y: 0 });
+  const hasDragged = useRef(false);
+
+  // Resize Observer to center board when container size is known
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateSize = () => {
+        if (!containerRef.current) return;
+        const cw = containerRef.current.clientWidth;
+        const ch = containerRef.current.clientHeight;
+        
+        // If container has 0 size, don't update yet
+        if (cw === 0 || ch === 0) return;
+
+        const gw = width * 40;
+        const gh = height * 40;
+        
+        const scaleX = (cw - 40) / gw; // Padding
+        const scaleY = (ch - 40) / gh;
+        const fitScale = Math.min(scaleX, scaleY, 0.8);
+        
+        // Only if we haven't set a valid transform yet (or if it was 0/0)
+        setTransform(prev => {
+           if (prev.x === 0 && prev.y === 0 && prev.scale === 0.8) {
+               return {
+                   x: (cw - gw * fitScale) / 2,
+                   y: (ch - gh * fitScale) / 2,
+                   scale: Math.max(0.2, fitScale)
+               };
+           }
+           return prev;
+        });
+    };
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(containerRef.current);
+    
+    // Initial call
+    updateSize();
+
+    return () => resizeObserver.disconnect();
+  }, [width, height]);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const scaleFactor = 0.1;
+    const direction = e.deltaY > 0 ? -1 : 1;
+    let newScale = transform.scale + direction * scaleFactor;
+    newScale = Math.min(Math.max(0.1, newScale), 5);
+
+    const worldX = (mouseX - transform.x) / transform.scale;
+    const worldY = (mouseY - transform.y) / transform.scale;
+    
+    const newX = mouseX - worldX * newScale;
+    const newY = mouseY - worldY * newScale;
+    
+    setTransform({ x: newX, y: newY, scale: newScale });
+  };
+
+  const startDrag = (clientX: number, clientY: number) => {
+    setIsDragging(true);
+    hasDragged.current = false;
+    dragStart.current = { x: clientX, y: clientY };
+    startTransform.current = { x: transform.x, y: transform.y };
+  };
+
+  const onDrag = (clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    const dx = clientX - dragStart.current.x;
+    const dy = clientY - dragStart.current.y;
+    
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasDragged.current = true;
+    }
+
+    setTransform(prev => ({
+        ...prev,
+        x: startTransform.current.x + dx,
+        y: startTransform.current.y + dy
+    }));
+  };
+
+  const stopDrag = () => {
+    setIsDragging(false);
+  };
+
+  const handleCellClickInternal = (id: string) => {
+    if (!hasDragged.current) {
+        onCellClick(id);
+    }
+  };
   
-  // Helper to count flags around a specific index
   const getNeighborFlags = (index: number) => {
       const x = index % width;
       const y = Math.floor(index / width);
       let flags = 0;
-
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           if (dx === 0 && dy === 0) continue;
@@ -175,62 +264,145 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
       return flags;
   };
 
-  return (
-    <div className="relative group p-[2px] rounded-xl bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 shadow-2xl border border-gray-800">
-      {/* Outer Glow */}
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-1000 pointer-events-none"></div>
-      
-      {/* Board Container */}
-      <div className="relative bg-gray-950 rounded-[10px] p-2 sm:p-4 overflow-auto max-w-[95vw] max-h-[75vh] custom-scrollbar z-10">
-         {/* Internal Texture */}
-         <div className="absolute inset-0 bg-dots-dark opacity-40 pointer-events-none"></div>
-         
-         {/* Particle System */}
-         <Particles particles={particles} width={width} height={height} />
+  const zoomIn = () => setTransform(p => {
+      const newScale = Math.min(p.scale * 1.2, 5);
+      if (containerRef.current) {
+         const cw = containerRef.current.clientWidth;
+         const ch = containerRef.current.clientHeight;
+         const cx = cw / 2;
+         const cy = ch / 2;
+         const wx = (cx - p.x) / p.scale;
+         const wy = (cy - p.y) / p.scale;
+         return { x: cx - wx * newScale, y: cy - wy * newScale, scale: newScale };
+      }
+      return { ...p, scale: newScale };
+  });
 
-         {/* The Grid */}
-         <div 
-          className="grid gap-1 relative z-10 mx-auto"
-          style={{
-            gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
-            width: 'fit-content'
-          }}
-        >
-          {cells.map((cell, index) => (
-            <CellComponent
-              key={cell.id}
-              cell={cell}
-              onClick={() => onCellClick(cell.id)}
-              onRightClick={(e) => onCellRightClick(cell.id, e)}
-              gameOver={gameOver}
-              neighborFlags={cell.isRevealed ? getNeighborFlags(index) : 0}
-            />
-          ))}
+  const zoomOut = () => setTransform(p => {
+      const newScale = Math.max(p.scale / 1.2, 0.1);
+      if (containerRef.current) {
+         const cw = containerRef.current.clientWidth;
+         const ch = containerRef.current.clientHeight;
+         const cx = cw / 2;
+         const cy = ch / 2;
+         const wx = (cx - p.x) / p.scale;
+         const wy = (cy - p.y) / p.scale;
+         return { x: cx - wx * newScale, y: cy - wy * newScale, scale: newScale };
+      }
+      return { ...p, scale: newScale };
+  });
+
+  const resetView = () => {
+      if (containerRef.current) {
+          const cw = containerRef.current.clientWidth;
+          const ch = containerRef.current.clientHeight;
+          const gw = width * 40;
+          const gh = height * 40;
+          const scaleX = (cw - 80) / gw;
+          const scaleY = (ch - 80) / gh;
+          const fitScale = Math.min(scaleX, scaleY, 0.8);
           
-          {/* Floating Texts Overlay */}
-          {floatingTexts.map((ft) => (
-            <div
-              key={ft.id}
-              className="absolute pointer-events-none z-50 flex flex-col items-center justify-center animate-float-text whitespace-nowrap"
+          setTransform({
+              x: (cw - gw * fitScale) / 2,
+              y: (ch - gh * fitScale) / 2,
+              scale: Math.max(0.2, fitScale)
+          });
+      }
+  };
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-gray-950">
+      {/* Background Effect for 'Void' */}
+      <div className="absolute inset-0 bg-dots-dark opacity-30 pointer-events-none" 
+           style={{ 
+               backgroundPosition: `${transform.x}px ${transform.y}px`, 
+               backgroundSize: `${20 * transform.scale}px` 
+           }} 
+      />
+
+      {/* Viewport Container */}
+      <div 
+        ref={containerRef}
+        className={`w-full h-full relative overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
+        onMouseMove={(e) => onDrag(e.clientX, e.clientY)}
+        onMouseUp={stopDrag}
+        onMouseLeave={stopDrag}
+        onTouchStart={(e) => startDrag(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchMove={(e) => onDrag(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchEnd={stopDrag}
+        onWheel={handleWheel}
+      >
+         <div 
+            className="absolute origin-top-left transition-transform duration-75 ease-out will-change-transform"
+            style={{ 
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                width: width * 40, 
+                height: height * 40 
+            }}
+         >
+             {/* Particles Layer (Scaled) */}
+             <div className="absolute inset-0 z-0">
+                 <Particles particles={particles} width={width} height={height} />
+             </div>
+
+             {/* Grid */}
+             <div 
+              className="grid gap-0.5 relative z-10"
               style={{
-                left: `calc((${ft.x} / ${width}) * 100%)`,
-                top: `calc((${ft.y} / ${height}) * 100%)`,
-                width: `calc(100% / ${width})`, // Center in cell
-                height: `calc(100% / ${height})`,
+                gridTemplateColumns: `repeat(${width}, 40px)`,
+                gridTemplateRows: `repeat(${height}, 40px)`,
+                width: width * 40,
+                height: height * 40
               }}
             >
-              <span 
-                className={`font-black text-sm sm:text-base drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${ft.color}`}
-                style={{ textShadow: '0px 0px 4px black' }}
-              >
-                {ft.icon && <span className="mr-1">{ft.icon}</span>}
-                {ft.text}
-              </span>
+              {cells.map((cell, index) => (
+                <CellComponent
+                  key={cell.id}
+                  cell={cell}
+                  onClick={() => handleCellClickInternal(cell.id)}
+                  onRightClick={(e) => { 
+                      if(!hasDragged.current) onCellRightClick(cell.id, e); 
+                  }}
+                  gameOver={gameOver}
+                  neighborFlags={cell.isRevealed ? getNeighborFlags(index) : 0}
+                />
+              ))}
+              
+              {/* Floating Texts Layer */}
+              {floatingTexts.map((ft) => (
+                <div
+                  key={ft.id}
+                  className="absolute pointer-events-none z-50 flex flex-col items-center justify-center animate-float-text whitespace-nowrap"
+                  style={{
+                    left: ft.x * 40,
+                    top: ft.y * 40,
+                    width: 40, 
+                    height: 40,
+                  }}
+                >
+                  <span 
+                    className={`font-black text-sm sm:text-base drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${ft.color}`}
+                    style={{ textShadow: '0px 0px 4px black', fontSize: `${Math.max(12, 16 / transform.scale)}px` }}
+                  >
+                    {ft.icon && <span className="mr-1">{ft.icon}</span>}
+                    {ft.text}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-
-        </div>
+         </div>
       </div>
+
+      {/* HUD Controls */}
+      <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-40 md:right-8 md:bottom-8">
+          <button onClick={zoomIn} className="w-10 h-10 bg-gray-800 border border-gray-600 rounded-full text-white shadow-lg hover:bg-gray-700 flex items-center justify-center font-bold text-xl active:scale-95 transition-transform" aria-label="Zoom In">+</button>
+          <button onClick={zoomOut} className="w-10 h-10 bg-gray-800 border border-gray-600 rounded-full text-white shadow-lg hover:bg-gray-700 flex items-center justify-center font-bold text-xl active:scale-95 transition-transform" aria-label="Zoom Out">-</button>
+          <button onClick={resetView} className="w-10 h-10 bg-gray-800 border border-gray-600 rounded-full text-white shadow-lg hover:bg-gray-700 flex items-center justify-center p-2 active:scale-95 transition-transform" aria-label="Reset View">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          </button>
+      </div>
+
     </div>
   );
 };

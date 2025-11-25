@@ -24,7 +24,8 @@ export enum ShapeType {
   CIRCLE = 'CIRCLE',
   DIAMOND = 'DIAMOND',
   DONUT = 'DONUT',
-  CROSS = 'CROSS'
+  CROSS = 'CROSS',
+  ORGANIC = 'ORGANIC'
 }
 
 export type Language = 'en' | 'jp';
