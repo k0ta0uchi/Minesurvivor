@@ -1,0 +1,5 @@
+{
+  "name": "MineSurvivor",
+  "description": "A roguelite Minesweeper RPG. Clear fields, gain XP, level up, and build your character with unique skills in this addictive strategy game.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,170 @@
+
+import React from 'react';
+import { PlayerStats, Character, SkillType } from '../types';
+import { SkillIcon, Icons } from './Icons';
+import { PixelCharacter } from './PixelCharacters';
+
+interface SidebarProps {
+  character: Character | null;
+  stats: PlayerStats;
+  className?: string;
+  onUseSkill: (skillId: string) => void;
+  onUseUltimate: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ character, stats, className, onUseSkill, onUseUltimate }) => {
+  if (!character) return null;
+
+  const xpPercentage = Math.min(100, (stats.currentXp / stats.neededXp) * 100);
+  const ultimatePercentage = Math.min(100, stats.limitGauge);
+  const isUltimateReady = ultimatePercentage >= 100;
+
+  return (
+    <div className={`flex flex-col gap-6 bg-gray-900 p-4 border-l border-gray-800 h-full overflow-y-auto ${className}`}>
+      {/* Character Profile */}
+      <div className="flex items-center gap-4 pb-4 border-b border-gray-800">
+        <div className="w-16 h-16 rounded-lg bg-gray-800 border-2 border-gray-700 shadow-lg overflow-hidden flex items-center justify-center p-1">
+          <PixelCharacter id={character.id} className="w-full h-full" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-white">{character.name}</h2>
+          <p className="text-sm text-gray-400">{character.class} - Lv.{stats.level}</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-gray-800 p-2 rounded flex flex-col items-center justify-center">
+            <Icons.flag className="text-purple-400 mb-1 w-5 h-5" />
+            <span className="text-xs text-gray-400 uppercase">Stage</span>
+            <span className="font-mono font-bold text-lg">{stats.stage}</span>
+        </div>
+        <div className="bg-gray-800 p-2 rounded flex flex-col items-center justify-center">
+            <Icons.shield className="text-blue-400 mb-1 w-5 h-5" />
+            <span className="text-xs text-gray-400 uppercase">Shields</span>
+            <span className="font-mono font-bold text-lg">{stats.shields}</span>
+        </div>
+        <div className="bg-gray-800 p-2 rounded flex flex-col items-center justify-center">
+            <Icons.coin className="text-yellow-400 mb-1 w-5 h-5" />
+            <span className="text-xs text-gray-400 uppercase">Score</span>
+            <span className="font-mono font-bold text-lg">{stats.score}</span>
+        </div>
+      </div>
+
+      {/* Limit Break / Ultimate */}
+      <div className="w-full">
+         <div className="flex justify-between items-end mb-1">
+            <span className="text-xs font-bold text-red-400 uppercase tracking-widest animate-pulse">Limit Break</span>
+            <span className="text-xs text-gray-500 font-mono">{Math.floor(ultimatePercentage)}%</span>
+         </div>
+         <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-700 mb-2">
+            <div 
+              className={`h-full transition-all duration-300 ${isUltimateReady ? 'bg-gradient-to-r from-red-500 via-yellow-500 to-white animate-pulse' : 'bg-red-900'}`}
+              style={{ width: `${ultimatePercentage}%` }}
+            />
+         </div>
+         
+         <button
+            onClick={onUseUltimate}
+            disabled={!isUltimateReady}
+            className={`
+                w-full py-3 rounded-lg font-black uppercase tracking-widest text-sm transition-all duration-200
+                flex items-center justify-center gap-2 border-2
+                ${isUltimateReady 
+                    ? 'bg-red-600 text-white border-red-400 hover:bg-red-500 hover:scale-105 shadow-[0_0_15px_rgba(239,68,68,0.5)] cursor-pointer' 
+                    : 'bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed'}
+            `}
+         >
+            {isUltimateReady ? (
+                <>
+                    <Icons.mine className="w-4 h-4 animate-spin" />
+                    ACTIVATE {character.ultimateName.toUpperCase()}
+                    <Icons.mine className="w-4 h-4 animate-spin" />
+                </>
+            ) : (
+                <span className="opacity-50">Charge Ultimate...</span>
+            )}
+         </button>
+         <p className="text-[10px] text-gray-500 mt-1 text-center">{character.ultimateDesc}</p>
+      </div>
+
+      {/* XP Bar */}
+      <div className="w-full">
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <span>EXP</span>
+          <span>{Math.floor(stats.currentXp)} / {Math.floor(stats.neededXp)}</span>
+        </div>
+        <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+          <div 
+            className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-500 ease-out"
+            style={{ width: `${xpPercentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Skills List */}
+      <div className="flex-1">
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Active Skills</h3>
+        <div className="space-y-3">
+          {stats.skills.map((skill) => {
+            const isConsumable = skill.type === SkillType.ITEM_SONAR;
+            const canUse = isConsumable && skill.value > 0;
+            
+            return (
+              <div 
+                key={skill.id} 
+                className={`
+                  group relative bg-gray-800 rounded-lg p-3 transition-all border 
+                  ${canUse ? 'border-red-500/50 hover:border-red-400 hover:bg-gray-750 cursor-pointer shadow-red-900/20 shadow-lg' : 'border-gray-700/50 hover:bg-gray-750'}
+                `}
+                onClick={() => canUse && onUseSkill(skill.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-md bg-gray-900 ${skill.color} relative`}>
+                    <SkillIcon icon={skill.iconPath} className={`w-6 h-6 ${canUse ? 'animate-pulse' : ''}`} />
+                    {isConsumable && (
+                        <div className="absolute -top-1 -right-1 bg-white text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                            {skill.value}
+                        </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center">
+                      <h4 className={`font-bold text-sm ${canUse ? 'text-white' : 'text-gray-200'}`}>{skill.name}</h4>
+                      <span className="text-xs font-mono text-gray-500">Lv.{skill.level}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 line-clamp-1">
+                        {isConsumable ? (canUse ? "Click to Activate" : "Out of charges") : skill.description}
+                    </p>
+                  </div>
+                  
+                  {canUse && (
+                    <div className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold uppercase tracking-wider ml-1">
+                        USE
+                    </div>
+                  )}
+                </div>
+                
+                {/* Tooltip on Hover */}
+                <div className="absolute left-0 bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                  <div className="bg-black border border-gray-600 p-2 rounded shadow-xl text-xs text-gray-300">
+                    <p className="font-bold text-white mb-1">{skill.name} (Lv.{skill.level})</p>
+                    <p>{skill.description}</p>
+                    <p className="mt-1 text-purple-300">
+                        {isConsumable ? `Charges: ${skill.value}` : `Effect: ${skill.value.toFixed(2)}x`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {stats.skills.length === 0 && (
+            <div className="text-center p-4 text-gray-600 text-sm border-2 border-dashed border-gray-800 rounded">
+              No skills yet.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
