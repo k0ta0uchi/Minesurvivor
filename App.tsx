@@ -743,7 +743,7 @@ export default function App() {
   // --- Render ---
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-gray-950 text-white font-sans overflow-hidden relative selection:bg-purple-500/30">
+    <div className="flex flex-col md:flex-row h-full w-full bg-gray-950 text-white font-sans overflow-hidden relative selection:bg-purple-500/30">
       
       {/* Visual Effects Background */}
       <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none z-0"></div>
@@ -769,17 +769,20 @@ export default function App() {
         {/* Header (Mobile) */}
         {gameState !== GameState.MENU && (
           <div className="md:hidden w-full flex-shrink-0 flex justify-between items-center mb-0 bg-gray-900/90 backdrop-blur-md p-2 border-b border-gray-700 shadow-xl z-20 relative">
-               <button onClick={() => setIsSidebarOpen(true)} className="p-2 mr-2 text-gray-300 hover:text-white">
-                  <Icons.menu className="w-6 h-6" />
-               </button>
                <div className="flex items-center gap-2 flex-1">
                   <span className="text-purple-400 font-bold text-xs">{UI_TEXT.stage[lang]} {stats.stage}</span>
                   <span className="font-bold text-yellow-400">Lv.{stats.level}</span>
                </div>
-               <div className="h-2 bg-gray-800 w-16 rounded-full overflow-hidden border border-gray-700 mx-2">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{width: `${Math.min(100, (stats.currentXp/stats.neededXp)*100)}%`}} />
+               
+               <div className="flex items-center gap-3">
+                   <div className="h-2 bg-gray-800 w-16 rounded-full overflow-hidden border border-gray-700">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{width: `${Math.min(100, (stats.currentXp/stats.neededXp)*100)}%`}} />
+                   </div>
+                   <span className="font-mono text-cyan-300 shadow-cyan-500/50 drop-shadow-sm text-sm">{stats.score}</span>
+                   <button onClick={() => setIsSidebarOpen(true)} className="p-1.5 ml-1 text-gray-300 hover:text-white border border-gray-700 rounded bg-gray-800/50">
+                      <Icons.menu className="w-5 h-5" />
+                   </button>
                </div>
-               <span className="font-mono text-cyan-300 shadow-cyan-500/50 drop-shadow-sm text-sm">{stats.score}</span>
           </div>
         )}
 
@@ -804,9 +807,10 @@ export default function App() {
             </div>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-y-auto custom-scrollbar w-full">
+        {/* Main Scrollable Area - UPDATED FOR MOBILE SCROLLING FIX */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar w-full relative">
             {gameState === GameState.MENU && (
-              <div className="flex flex-col items-center justify-center w-full min-h-full py-10 animate-fade-in">
+              <div className="min-h-full flex flex-col items-center justify-center w-full py-10 px-4 animate-fade-in">
                 <div className="mb-12 relative text-center">
                     <div className="absolute -inset-4 bg-purple-500/20 blur-xl rounded-full animate-pulse-fast"></div>
                     <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl relative z-10">
@@ -817,7 +821,7 @@ export default function App() {
                 
                 <p className="text-gray-400 mb-8 animate-slide-up text-center" style={{animationDelay: '100ms'}}>{UI_TEXT.select_char[lang]}</p>
                 
-                <div className="flex flex-col md:flex-row gap-6 w-full max-w-5xl px-4 justify-center items-stretch">
+                <div className="flex flex-col md:flex-row gap-6 w-full max-w-5xl justify-center items-stretch">
                   {CHARACTERS.map((char, idx) => (
                     <button
                       key={char.id}
@@ -848,15 +852,17 @@ export default function App() {
 
             {(gameState === GameState.PLAYING || gameState === GameState.LEVEL_UP || gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR) && (
               <>
-                <GameBoard 
-                  cells={cells} 
-                  width={boardConfig.width} 
-                  height={boardConfig.height} 
-                  onCellClick={handleCellClick}
-                  onCellRightClick={handleRightClick}
-                  gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR}
-                  floatingTexts={floatingTexts}
-                />
+                <div className="min-h-full flex flex-col items-center justify-center p-4">
+                    <GameBoard 
+                      cells={cells} 
+                      width={boardConfig.width} 
+                      height={boardConfig.height} 
+                      onCellClick={handleCellClick}
+                      onCellRightClick={handleRightClick}
+                      gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR}
+                      floatingTexts={floatingTexts}
+                    />
+                </div>
                 
                 {(gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR) && (
                   <div className="absolute inset-0 z-20 bg-gray-950/90 flex items-center justify-center flex-col animate-fade-in backdrop-blur-md">
