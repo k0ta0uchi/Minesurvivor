@@ -82,6 +82,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
   const hasDragged = useRef(false);
   const longPressTimer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
+  
+  // Fix for Ghost Clicks on Mobile
+  const lastTouchTime = useRef(0);
 
   // Sync refs
   useEffect(() => { transformRef.current = transform; }, [transform]);
@@ -535,6 +538,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
 
   // Touch Long Press for Right Click
   const onTouchStart = (e: React.TouchEvent) => {
+      lastTouchTime.current = Date.now();
       const touch = e.touches[0];
       const tx = touch.clientX;
       const ty = touch.clientY;
@@ -592,14 +596,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
       <div 
         ref={containerRef}
         className={`w-full h-full relative overflow-hidden ${isDragging.current ? 'cursor-grabbing' : 'cursor-grab'}`}
-        onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
+        onMouseDown={(e) => {
+             // Ignore ghost mouse events after touch
+             if (Date.now() - lastTouchTime.current < 1000) return;
+             startDrag(e.clientX, e.clientY);
+        }}
         onMouseMove={(e) => onDrag(e.clientX, e.clientY)}
-        onMouseUp={stopDrag}
+        onMouseUp={(e) => {
+             if (Date.now() - lastTouchTime.current < 1000) return;
+             stopDrag(e);
+        }}
         onMouseLeave={() => isDragging.current = false}
         onContextMenu={handleRightClick}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={(e) => {
+             lastTouchTime.current = Date.now();
              if (longPressTimer.current) clearTimeout(longPressTimer.current);
              stopDrag(e);
         }}
