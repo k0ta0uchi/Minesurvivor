@@ -8,7 +8,7 @@ import { TitleScreen } from './components/TitleScreen';
 import { GameOverlays } from './components/GameOverlays';
 import { Icons } from './components/Icons';
 import { audioManager } from './utils/audio';
-import { rankingDB } from './utils/ranking';
+// import { rankingDB } from './utils/ranking'; // DEPRECATED
 import { CHARACTERS, AVAILABLE_SKILLS, LEVEL_BASE_XP, XP_SCALING_FACTOR } from './data/gameData';
 import { UI_TEXT } from './data/locales';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -91,12 +91,14 @@ export default function App() {
     if ((gameState === GameState.PLAYING || gameState === GameState.STAGE_CLEAR) && stats.currentXp >= stats.neededXp) prepareLevelUp();
   }, [stats.currentXp, gameState, stats.neededXp]);
 
-  // Ranking Save on Game Over
+  // Ranking Save on Game Over - DEPRECATED
+  /*
   useEffect(() => {
     if (gameState === GameState.GAME_OVER && character) {
        rankingDB.insertScore(playerName, stats.score, stats.stage, character.id);
     }
   }, [gameState]);
+  */
 
   // Actions
   const gainXp = (amount: number) => {
@@ -457,7 +459,7 @@ export default function App() {
 
         {/* MAIN GAME AREA - Layout Logic */}
         {gameState === GameState.MENU ? (
-          <div id="main-scroll-container" className="w-full h-full overflow-y-auto custom-scrollbar relative snap-y snap-mandatory">
+          <div id="main-scroll-container" className="w-full h-full overflow-y-auto custom-scrollbar relative">
              <TitleScreen characters={CHARACTERS} lang={lang} onSelectCharacter={initializeGame} />
           </div>
         ) : (
