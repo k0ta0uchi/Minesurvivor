@@ -12,14 +12,30 @@ import { CHARACTERS, AVAILABLE_SKILLS, LEVEL_BASE_XP, XP_SCALING_FACTOR } from '
 import { UI_TEXT } from './data/locales';
 import { useGameEngine } from './hooks/useGameEngine';
 
+const STORAGE_KEY = 'MINESURVIVOR_SETTINGS';
+
 export default function App() {
+  // Load settings from localStorage once on init
+  const [savedSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.warn('Failed to load settings:', e);
+      return {};
+    }
+  });
+
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [character, setCharacter] = useState<Character | null>(null);
-  const [lang, setLang] = useState<Language>('en');
-  const [bgmEnabled, setBgmEnabled] = useState(true);
-  const [seEnabled, setSeEnabled] = useState(true);
-  const [bgmVolume, setBgmVolume] = useState(0.5);
-  const [seVolume, setSeVolume] = useState(0.5);
+  
+  // Initialize with saved settings or defaults
+  const [lang, setLang] = useState<Language>(savedSettings.lang === 'jp' ? 'jp' : 'en');
+  const [bgmEnabled, setBgmEnabled] = useState(savedSettings.bgmEnabled ?? true);
+  const [seEnabled, setSeEnabled] = useState(savedSettings.seEnabled ?? true);
+  const [bgmVolume, setBgmVolume] = useState(savedSettings.bgmVolume ?? 0.5);
+  const [seVolume, setSeVolume] = useState(savedSettings.seVolume ?? 0.5);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFlagMode, setIsFlagMode] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -37,6 +53,12 @@ export default function App() {
 
   const stateRef = useRef({ cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode });
   useEffect(() => { stateRef.current = { cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode }; }, [cells, stats, gameState, character, boardConfig, combo, lang, isFlagMode]);
+
+  // Persist Settings
+  useEffect(() => {
+    const settings = { lang, bgmEnabled, seEnabled, bgmVolume, seVolume };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  }, [lang, bgmEnabled, seEnabled, bgmVolume, seVolume]);
 
   // Audio Sync
   useEffect(() => {
