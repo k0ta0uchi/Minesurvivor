@@ -91,15 +91,6 @@ export default function App() {
     if ((gameState === GameState.PLAYING || gameState === GameState.STAGE_CLEAR) && stats.currentXp >= stats.neededXp) prepareLevelUp();
   }, [stats.currentXp, gameState, stats.neededXp]);
 
-  // Ranking Save on Game Over - DEPRECATED
-  /*
-  useEffect(() => {
-    if (gameState === GameState.GAME_OVER && character) {
-       rankingDB.insertScore(playerName, stats.score, stats.stage, character.id);
-    }
-  }, [gameState]);
-  */
-
   // Actions
   const gainXp = (amount: number) => {
     setStats(prev => {
@@ -205,7 +196,6 @@ export default function App() {
     let targetY = 0;
     let effectType: UltimateEffectType = 'EXPLOSION';
     
-    // Determine the center of "unrevealed" mass to focus camera there for non-targeted skills
     const unrevealed = curr.filter(c => !c.isRevealed && !c.isVoid);
     const visualCenter = unrevealed.length > 0 ? unrevealed[Math.floor(unrevealed.length/2)] : curr[Math.floor(curr.length/2)];
     
@@ -228,19 +218,17 @@ export default function App() {
     
     setUltimateEffect({ id: Date.now(), x: targetX, y: targetY, type: effectType });
 
-    // 2. Execute Logic with Delay (Logic MUST match visual target)
+    // 2. Execute Logic with Delay
     setTimeout(() => {
         const { cells: currentCells, boardConfig: currentConfig } = stateRef.current; // Get fresh state
         let newCells = [...currentCells];
         let xp = 0;
         
         if (character.id === 'miner') {
-            // Use the SAME target we picked for the effect
             let centerIdx = -1;
             if (minerTargetId) {
                 centerIdx = newCells.findIndex(c => c.id === minerTargetId);
             }
-            // If target found, use it; otherwise fallback to recalculation (rare)
             if (centerIdx !== -1) {
                 const tx = centerIdx % currentConfig.width;
                 const ty = Math.floor(centerIdx / currentConfig.width);
@@ -266,14 +254,12 @@ export default function App() {
                 }
             }
         } else if (character.id === 'scholar') {
-            // Scholar Logic (Random scatter is fine, effect was just "casting")
              newCells.filter(c => c.isMine && !c.isFlagged && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => newCells[parseInt(c.id.split('-')[1])].isFlagged = true);
             newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => {
                 const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 20;
                 if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
             });
         } else if (character.id === 'gambler') {
-            // Gambler Logic
              newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 7).forEach(c => {
                 const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 50;
                 if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
@@ -385,9 +371,6 @@ export default function App() {
 
   const checkWin = (currentCells: Cell[]) => {
     if (currentCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).length === 0) {
-      // Save ranking on Stage Clear? Or just end of run? Usually just Game Over, but we can update score here too if we want "Highest Stage" records.
-      // For now, save only on Game Over to keep "High Score" concept simple (accumulation).
-      // Or we can save intermediate scores. Let's stick to Game Over for final submission.
       setGameState(GameState.STAGE_CLEAR); audioManager.playVictory(); audioManager.stopMusic();
     }
   };
@@ -428,14 +411,6 @@ export default function App() {
       <div className="absolute inset-0 bg-radial-fade opacity-80 pointer-events-none z-0"></div>
       <div className="scanlines z-50"></div>
 
-      {gameState === GameState.MENU && (
-        <div className="absolute top-6 right-6 z-[60]">
-          <button onClick={() => setLang(l => l === 'en' ? 'jp' : 'en')} className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold font-mono transition-all shadow-lg group">
-            <Icons.globe className="w-3 h-3 md:w-4 md:h-4 text-gray-400 group-hover:text-purple-400 transition-colors"/><span className="text-gray-300 group-hover:text-white">{lang === 'en' ? 'English' : '日本語'}</span>
-          </button>
-        </div>
-      )}
-
       <div className="flex-1 relative z-10 flex flex-col min-w-0 h-full overflow-hidden">
         {gameState !== GameState.MENU && (
           <div className="md:hidden w-full flex-shrink-0 flex justify-between items-center mb-0 bg-gray-900/90 backdrop-blur-md p-2 border-b border-gray-700 shadow-xl z-20 relative">
@@ -460,12 +435,15 @@ export default function App() {
         {/* MAIN GAME AREA - Layout Logic */}
         {gameState === GameState.MENU ? (
           <div id="main-scroll-container" className="w-full h-full overflow-y-auto custom-scrollbar relative">
-             <TitleScreen characters={CHARACTERS} lang={lang} onSelectCharacter={initializeGame} />
+             <TitleScreen 
+                characters={CHARACTERS} 
+                lang={lang} 
+                onSelectCharacter={initializeGame} 
+                onToggleLang={() => setLang(l => l === 'en' ? 'jp' : 'en')}
+             />
           </div>
         ) : (
           <div className="relative w-full h-full bg-gray-950 overflow-hidden">
-             {/* Note: We no longer need to pass floatingTexts/particles to GameBoard if we handle them internally or if GameBoard renders them via Canvas.
-                 However, to keep current logic working, we pass them. The new GameBoard renders them on Canvas. */}
              <GameBoard 
                 cells={cells} 
                 width={boardConfig.width} 

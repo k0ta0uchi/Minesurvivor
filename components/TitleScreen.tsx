@@ -3,24 +3,40 @@ import React from 'react';
 import { Character, Language } from '../types';
 import { PixelCharacter } from './PixelCharacters';
 import { UI_TEXT } from '../data/locales';
+import { Icons } from './Icons';
 
 interface TitleScreenProps {
   characters: Character[];
   lang: Language;
   onSelectCharacter: (char: Character, playerName: string) => void;
+  onToggleLang: () => void;
 }
 
-export const TitleScreen: React.FC<TitleScreenProps> = ({ characters, lang, onSelectCharacter }) => {
+export const TitleScreen: React.FC<TitleScreenProps> = ({ characters, lang, onSelectCharacter, onToggleLang }) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-4 relative overflow-hidden">
       
+      {/* Desktop Language Button */}
+      <div className="hidden md:block absolute top-6 right-6 z-[60]">
+          <button onClick={onToggleLang} className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold font-mono transition-all shadow-lg group">
+            <Icons.globe className="w-3 h-3 md:w-4 md:h-4 text-gray-400 group-hover:text-purple-400 transition-colors"/><span className="text-gray-300 group-hover:text-white">{lang === 'en' ? 'English' : '日本語'}</span>
+          </button>
+      </div>
+
       {/* Header */}
-      <div className="flex-shrink-0 text-center mb-6 relative mt-10 md:mt-0 z-20">
+      <div className="flex-shrink-0 text-center mb-6 relative mt-10 md:mt-0 z-20 flex flex-col items-center">
         <div className="absolute -inset-4 bg-purple-500/20 blur-xl rounded-full animate-pulse-fast"></div>
         <h1 className="text-4xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl relative z-10">
         MINESURVIVOR
         </h1>
         <p className="text-purple-400 uppercase tracking-[0.5em] text-[10px] md:text-xs mt-2 font-bold opacity-80">{UI_TEXT.subtitle[lang]}</p>
+        
+        {/* Mobile Language Button */}
+        <div className="md:hidden mt-4 relative z-30">
+             <button onClick={onToggleLang} className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 backdrop-blur border border-gray-700 hover:border-purple-500 px-3 py-1.5 rounded-full text-[10px] font-bold font-mono transition-all shadow-lg group">
+                <Icons.globe className="w-3 h-3 text-gray-400 group-hover:text-purple-400 transition-colors"/><span className="text-gray-300 group-hover:text-white">{lang === 'en' ? 'English' : '日本語'}</span>
+             </button>
+        </div>
       </div>
 
       {/* Main Controls Container */}
