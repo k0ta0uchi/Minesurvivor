@@ -415,10 +415,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
         
         setTransform(prev => {
            if (prev.x === 0 && prev.y === 0 && prev.scale === 0.8) {
+               const isMobile = window.innerWidth < 768; // simple width check for mobile breakpoint
+               const targetScale = isMobile ? Math.max(0.2, fitScale * 2) : Math.max(0.2, fitScale);
+
                return {
-                   x: (cw - gw * fitScale) / 2,
-                   y: (ch - gh * fitScale) / 2,
-                   scale: Math.max(0.2, fitScale)
+                   x: (cw - gw * targetScale) / 2,
+                   y: (ch - gh * targetScale) / 2,
+                   scale: targetScale
                };
            }
            return prev;
