@@ -128,3 +128,12 @@ export interface UltimateEffect {
   y: number;
   type: UltimateEffectType;
 }
+
+export interface RankingEntry {
+  id: number;
+  name: string;
+  score: number;
+  stage: number;
+  characterId: string;
+  timestamp: number;
+}

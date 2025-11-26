@@ -8,6 +8,7 @@ import { TitleScreen } from './components/TitleScreen';
 import { GameOverlays } from './components/GameOverlays';
 import { Icons } from './components/Icons';
 import { audioManager } from './utils/audio';
+import { rankingDB } from './utils/ranking';
 import { CHARACTERS, AVAILABLE_SKILLS, LEVEL_BASE_XP, XP_SCALING_FACTOR } from './data/gameData';
 import { UI_TEXT } from './data/locales';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -28,6 +29,7 @@ export default function App() {
 
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [character, setCharacter] = useState<Character | null>(null);
+  const [playerName, setPlayerName] = useState<string>("");
   
   // Initialize with saved settings, or detect browser language
   const [lang, setLang] = useState<Language>(() => {
@@ -89,6 +91,13 @@ export default function App() {
     if ((gameState === GameState.PLAYING || gameState === GameState.STAGE_CLEAR) && stats.currentXp >= stats.neededXp) prepareLevelUp();
   }, [stats.currentXp, gameState, stats.neededXp]);
 
+  // Ranking Save on Game Over
+  useEffect(() => {
+    if (gameState === GameState.GAME_OVER && character) {
+       rankingDB.insertScore(playerName, stats.score, stats.stage, character.id);
+    }
+  }, [gameState]);
+
   // Actions
   const gainXp = (amount: number) => {
     setStats(prev => {
@@ -115,9 +124,10 @@ export default function App() {
     if (stageNum === 1) audioManager.playLevelUp();
   };
 
-  const initializeGame = (char: Character) => {
+  const initializeGame = (char: Character, name: string) => {
     audioManager.resetMusic();
     setCharacter(char);
+    setPlayerName(name);
     const initialSkills = AVAILABLE_SKILLS.filter(s => char.startingSkills.includes(s.id)).map(s => ({ ...s, level: 1, value: s.value + s.valuePerLevel }));
     const initialStats = { level: 1, currentXp: 0, neededXp: LEVEL_BASE_XP, shields: char.baseStats.maxShields, score: 0, skills: initialSkills, stage: 1, limitGauge: 0 };
     setStats(initialStats);
@@ -373,6 +383,9 @@ export default function App() {
 
   const checkWin = (currentCells: Cell[]) => {
     if (currentCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).length === 0) {
+      // Save ranking on Stage Clear? Or just end of run? Usually just Game Over, but we can update score here too if we want "Highest Stage" records.
+      // For now, save only on Game Over to keep "High Score" concept simple (accumulation).
+      // Or we can save intermediate scores. Let's stick to Game Over for final submission.
       setGameState(GameState.STAGE_CLEAR); audioManager.playVictory(); audioManager.stopMusic();
     }
   };
@@ -444,7 +457,7 @@ export default function App() {
 
         {/* MAIN GAME AREA - Layout Logic */}
         {gameState === GameState.MENU ? (
-          <div className="w-full h-full overflow-y-auto custom-scrollbar relative">
+          <div id="main-scroll-container" className="w-full h-full overflow-y-auto custom-scrollbar relative snap-y snap-mandatory">
              <TitleScreen characters={CHARACTERS} lang={lang} onSelectCharacter={initializeGame} />
           </div>
         ) : (
