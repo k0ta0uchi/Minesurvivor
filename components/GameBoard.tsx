@@ -1,6 +1,6 @@
 
 import React, { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
-import { Cell, MineType, ItemType, FloatingText, Particle } from '../types';
+import { Cell, MineType, ItemType, FloatingText, Particle, UltimateEffect } from '../types';
 import { Icons } from './Icons';
 import { SPRITES, PALETTE } from './PixelCharacters';
 
@@ -13,6 +13,7 @@ interface GameBoardProps {
   gameOver: boolean;
   floatingTexts: FloatingText[];
   particles: Particle[];
+  ultimateEffect: UltimateEffect | null;
 }
 
 // --- CONSTANTS ---
@@ -63,7 +64,7 @@ const loadSprites = async () => {
     await Promise.all(promises);
 };
 
-export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts, particles }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCellClick, onCellRightClick, gameOver, floatingTexts, particles, ultimateEffect }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -72,6 +73,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
   const transformRef = useRef(transform); // Ref for animation loop to avoid closures
   const cellsRef = useRef(cells);
   const particlesRef = useRef(particles);
+  const ultRef = useRef(ultimateEffect);
   
   // Interaction State
   const isDragging = useRef(false);
@@ -85,6 +87,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
   useEffect(() => { transformRef.current = transform; }, [transform]);
   useEffect(() => { cellsRef.current = cells; }, [cells]);
   useEffect(() => { particlesRef.current = particles; }, [particles]);
+  
+  // Sync Ultimate Effect State for Renderer (handles null clearing correctly)
+  useEffect(() => { 
+      ultRef.current = ultimateEffect; 
+  }, [ultimateEffect]);
+  
+  // Ultimate Focus Camera Effect (Only triggers on NEW effect)
+  useEffect(() => {
+    if (ultimateEffect && containerRef.current) {
+        const cw = containerRef.current.clientWidth;
+        const ch = containerRef.current.clientHeight;
+        // Center the camera on the effect
+        const targetX = ultimateEffect.x * CELL_SIZE + HALF_CELL;
+        const targetY = ultimateEffect.y * CELL_SIZE + HALF_CELL;
+        
+        // Zoom in a bit
+        const targetScale = 1.5;
+        const px = (cw / 2) - targetX * targetScale;
+        const py = (ch / 2) - targetY * targetScale;
+        
+        setTransform({ x: px, y: py, scale: targetScale });
+    }
+  }, [ultimateEffect?.id]); // Use optional chaining to only trigger on ID change
 
   // Load Assets
   useEffect(() => { loadSprites(); }, []);
@@ -285,7 +310,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({ cells, width, height, onCe
             }
         }
 
-        // 5. Draw Particles
+        // 5. Draw Ultimate Effects (if active)
+        if (ultRef.current) {
+            const { x, y, type } = ultRef.current;
+            const cx = x * CELL_SIZE + HALF_CELL;
+            const cy = y * CELL_SIZE + HALF_CELL;
+            const life = (time % 1000) / 1000; 
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            if (type === 'EXPLOSION') {
+                ctx.beginPath();
+                ctx.arc(0, 0, life * 200, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(239, 68, 68, ${1 - life})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(255, 200, 200, ${1 - life})`;
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            } else if (type === 'MAGIC') {
+                ctx.rotate(time / 200);
+                ctx.strokeStyle = `rgba(168, 85, 247, ${0.8})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.rect(-50, -50, 100, 100);
+                ctx.stroke();
+                ctx.rotate(time / -100);
+                ctx.beginPath();
+                ctx.arc(0, 0, 70, 0, Math.PI*2);
+                ctx.stroke();
+            } else if (type === 'JACKPOT') {
+                 // Coins raining? Simple yellow circle bursts
+                for(let i=0; i<8; i++) {
+                     const angle = (Math.PI*2/8)*i + time/500;
+                     const dx = Math.cos(angle) * (life * 150);
+                     const dy = Math.sin(angle) * (life * 150);
+                     ctx.fillStyle = '#facc15';
+                     ctx.beginPath();
+                     ctx.arc(dx, dy, 10 * (1-life), 0, Math.PI*2);
+                     ctx.fill();
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        // 6. Draw Particles
         particlesRef.current.forEach(p => {
              const px = p.x * CELL_SIZE + HALF_CELL;
              const py = p.y * CELL_SIZE + HALF_CELL;

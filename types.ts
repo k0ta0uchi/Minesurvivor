@@ -119,3 +119,12 @@ export interface Particle {
   dx: number;
   dy: number;
 }
+
+export type UltimateEffectType = 'EXPLOSION' | 'MAGIC' | 'JACKPOT';
+
+export interface UltimateEffect {
+  id: number;
+  x: number;
+  y: number;
+  type: UltimateEffectType;
+}

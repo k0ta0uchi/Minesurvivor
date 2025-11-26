@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, Language } from './types';
+import { GameState, Cell, Character, Skill, SkillType, PlayerStats, MineType, ItemType, Language, UltimateEffect, UltimateEffectType } from './types';
 import { GameBoard } from './components/GameBoard';
 import { Sidebar } from './components/Sidebar';
 import { LevelUpModal } from './components/LevelUpModal';
@@ -29,8 +29,20 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [character, setCharacter] = useState<Character | null>(null);
   
-  // Initialize with saved settings or defaults
-  const [lang, setLang] = useState<Language>(savedSettings.lang === 'jp' ? 'jp' : 'en');
+  // Initialize with saved settings, or detect browser language
+  const [lang, setLang] = useState<Language>(() => {
+    // 1. Priority: Use saved setting if available
+    if (savedSettings.lang === 'jp' || savedSettings.lang === 'en') {
+      return savedSettings.lang;
+    }
+    // 2. Priority: Detect browser language
+    if (typeof navigator !== 'undefined' && navigator.language.startsWith('ja')) {
+      return 'jp';
+    }
+    // 3. Fallback: English
+    return 'en';
+  });
+
   const [bgmEnabled, setBgmEnabled] = useState(savedSettings.bgmEnabled ?? true);
   const [seEnabled, setSeEnabled] = useState(savedSettings.seEnabled ?? true);
   const [bgmVolume, setBgmVolume] = useState(savedSettings.bgmVolume ?? 0.5);
@@ -41,6 +53,7 @@ export default function App() {
   const [combo, setCombo] = useState(0);
   const comboTimerRef = useRef<number | null>(null);
   const [levelUpOptions, setLevelUpOptions] = useState<Skill[]>([]);
+  const [ultimateEffect, setUltimateEffect] = useState<UltimateEffect | null>(null);
   
   const { 
     cells, setCells, boardConfig, stageName, floatingTexts, addFloatingText, particles, spawnParticles, 
@@ -170,44 +183,96 @@ export default function App() {
   const handleUseUltimate = () => {
     if (gameState !== GameState.PLAYING || stats.limitGauge < 100 || !character) return;
     audioManager.playUltimateCast();
+    
     const { cells: curr, boardConfig: bc } = stateRef.current;
-    let newCells = [...curr], xp = 0;
+    
     setStats(p => ({ ...p, limitGauge: 0 }));
 
+    // 1. Determine Effect Target & Type
+    let targetX = 0;
+    let targetY = 0;
+    let effectType: UltimateEffectType = 'EXPLOSION';
+    
+    // Determine the center of "unrevealed" mass to focus camera there for non-targeted skills
+    const unrevealed = curr.filter(c => !c.isRevealed && !c.isVoid);
+    const visualCenter = unrevealed.length > 0 ? unrevealed[Math.floor(unrevealed.length/2)] : curr[Math.floor(curr.length/2)];
+    
+    let minerTargetId: string | null = null;
+
     if (character.id === 'miner') {
-      const safe = newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid);
-      if (safe.length > 0) {
-        const t = safe[Math.floor(Math.random() * safe.length)];
-        const tidx = parseInt(t.id.split('-')[1]);
-        const tx = tidx % bc.width, ty = Math.floor(tidx / bc.width);
-        for(let dy=-2; dy<=2; dy++) for(let dx=-2; dx<=2; dx++) {
-          const nx=tx+dx, ny=ty+dy;
-          if(nx>=0 && nx<bc.width && ny>=0 && ny<bc.height) {
-            const idx = ny*bc.width+nx;
-            if(newCells[idx].isVoid) continue;
-            if(newCells[idx].isMine) newCells[idx].isFlagged=true;
-            else if(!newCells[idx].isRevealed) {
-              newCells[idx].isRevealed=true; xp+=10;
-              if(newCells[idx].itemType!==ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
-            }
-          }
-        }
-      }
-    } else if (character.id === 'scholar') {
-      newCells.filter(c => c.isMine && !c.isFlagged && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => newCells[parseInt(c.id.split('-')[1])].isFlagged = true);
-      newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => {
-        const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 20;
-        if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
-      });
-    } else if (character.id === 'gambler') {
-      newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 7).forEach(c => {
-        const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 50;
-        if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
-      });
+        const safe = unrevealed.filter(c => !c.isMine);
+        // Pick a target for the blast first
+        const target = safe.length > 0 ? safe[Math.floor(Math.random() * safe.length)] : visualCenter;
+        targetX = target.x;
+        targetY = target.y;
+        minerTargetId = target.id;
+        effectType = 'EXPLOSION';
+    } else {
+        targetX = visualCenter.x;
+        targetY = visualCenter.y;
+        if (character.id === 'scholar') effectType = 'MAGIC';
+        if (character.id === 'gambler') effectType = 'JACKPOT';
     }
-    setCells(newCells);
-    gainXp(xp);
-    checkWin(newCells);
+    
+    setUltimateEffect({ id: Date.now(), x: targetX, y: targetY, type: effectType });
+
+    // 2. Execute Logic with Delay (Logic MUST match visual target)
+    setTimeout(() => {
+        const { cells: currentCells, boardConfig: currentConfig } = stateRef.current; // Get fresh state
+        let newCells = [...currentCells];
+        let xp = 0;
+        
+        if (character.id === 'miner') {
+            // Use the SAME target we picked for the effect
+            let centerIdx = -1;
+            if (minerTargetId) {
+                centerIdx = newCells.findIndex(c => c.id === minerTargetId);
+            }
+            // If target found, use it; otherwise fallback to recalculation (rare)
+            if (centerIdx !== -1) {
+                const tx = centerIdx % currentConfig.width;
+                const ty = Math.floor(centerIdx / currentConfig.width);
+                
+                // Blast 5x5
+                for(let dy=-2; dy<=2; dy++) for(let dx=-2; dx<=2; dx++) {
+                    const nx = tx + dx;
+                    const ny = ty + dy;
+                    if(nx>=0 && nx<currentConfig.width && ny>=0 && ny<currentConfig.height) {
+                        const idx = ny*currentConfig.width+nx;
+                        if(newCells[idx].isVoid) continue;
+                        if(newCells[idx].isMine) {
+                            newCells[idx].isFlagged = true;
+                        } else if(!newCells[idx].isRevealed) {
+                            newCells[idx].isRevealed = true; 
+                            xp += 10;
+                            if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { 
+                                collectItem(newCells[idx]); 
+                                newCells[idx].isLooted = true; 
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (character.id === 'scholar') {
+            // Scholar Logic (Random scatter is fine, effect was just "casting")
+             newCells.filter(c => c.isMine && !c.isFlagged && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => newCells[parseInt(c.id.split('-')[1])].isFlagged = true);
+            newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 5).forEach(c => {
+                const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 20;
+                if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
+            });
+        } else if (character.id === 'gambler') {
+            // Gambler Logic
+             newCells.filter(c => !c.isMine && !c.isRevealed && !c.isVoid).sort(() => 0.5 - Math.random()).slice(0, 7).forEach(c => {
+                const idx = parseInt(c.id.split('-')[1]); newCells[idx].isRevealed = true; xp += 50;
+                if(newCells[idx].itemType !== ItemType.NONE && !newCells[idx].isLooted) { collectItem(newCells[idx]); newCells[idx].isLooted=true; }
+            });
+        }
+        
+        setCells(newCells);
+        setUltimateEffect(null); // Stop visual effect loop
+        gainXp(xp);
+        checkWin(newCells);
+    }, 600);
   };
 
   const collectItem = (cell: Cell) => {
@@ -384,7 +449,19 @@ export default function App() {
           </div>
         ) : (
           <div className="relative w-full h-full bg-gray-950 overflow-hidden">
-             <GameBoard cells={cells} width={boardConfig.width} height={boardConfig.height} onCellClick={handleCellClick} onCellRightClick={handleRightClick} gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR} floatingTexts={floatingTexts} particles={particles} />
+             {/* Note: We no longer need to pass floatingTexts/particles to GameBoard if we handle them internally or if GameBoard renders them via Canvas.
+                 However, to keep current logic working, we pass them. The new GameBoard renders them on Canvas. */}
+             <GameBoard 
+                cells={cells} 
+                width={boardConfig.width} 
+                height={boardConfig.height} 
+                onCellClick={handleCellClick} 
+                onCellRightClick={handleRightClick} 
+                gameOver={gameState === GameState.GAME_OVER || gameState === GameState.STAGE_CLEAR} 
+                floatingTexts={floatingTexts} 
+                particles={particles}
+                ultimateEffect={ultimateEffect}
+             />
              
              {/* Overlays (Win/Loss) */}
              <GameOverlays gameState={gameState} stats={stats} lang={lang} onNextStage={() => { const ns = stats.stage + 1; const bonus = stats.stage * 500; setStats(p => ({ ...p, score: p.score + bonus })); startStage(ns, { ...stats, score: stats.score + bonus }); }} onReturnToBase={() => setGameState(GameState.MENU)} />
