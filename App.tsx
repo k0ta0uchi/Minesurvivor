@@ -467,7 +467,7 @@ export default function App() {
              <GameOverlays gameState={gameState} stats={stats} lang={lang} onNextStage={() => { const ns = stats.stage + 1; const bonus = stats.stage * 500; setStats(p => ({ ...p, score: p.score + bonus })); startStage(ns, { ...stats, score: stats.score + bonus }); }} onReturnToBase={() => setGameState(GameState.MENU)} />
 
              {/* Mobile Flag Toggle Button */}
-             <div className="md:hidden absolute bottom-6 right-6 z-40">
+             <div className="md:hidden absolute bottom-6 right-24 z-40">
                 <button onClick={() => setIsFlagMode(!isFlagMode)} className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all transform active:scale-95 border-4 ${isFlagMode ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-600 border-blue-400 text-white'}`}>{isFlagMode ? <Icons.flag className="w-8 h-8" /> : <Icons.shovel className="w-8 h-8" />}</button>
              </div>
           </div>
